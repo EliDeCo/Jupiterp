@@ -21,6 +21,9 @@ Copyright (C) 2025 Andrew Cupps
     import type { Course } from "@jupiterp/jupiterp";
     import type { ScheduleSelection } from "../../../types";
     import CourseFilters from "./CourseFilters.svelte";
+    import init, { add } from "../../../../../rust-lib/pkg";
+    import { onMount } from "svelte";
+
 
     const FILTER_SCROLL_COLLAPSE_THRESHOLD = 100;
 
@@ -53,6 +56,9 @@ Copyright (C) 2025 Andrew Cupps
     }
 
     let genEdMenuOpen = false;
+
+
+
 
     function selectDepartment(dept: string) {
         searchInput = dept;
@@ -136,10 +142,17 @@ Copyright (C) 2025 Andrew Cupps
         });
     }
 
+    let show = 0;
+
+
+    onMount(async () => {
+        await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
+    })
+
+
     function generateSchedule() {
-
+        show = add(show);
     }
-
 </script>
 
 <!-- Layer to exit course search if user taps on the Schedule -->
@@ -169,6 +182,7 @@ Copyright (C) 2025 Andrew Cupps
         <div>
             Spring 2026
         </div>
+        <div>{show}</div>
         <div class='grow text-right'>
             Credits: {totalCredits}
         </div>
