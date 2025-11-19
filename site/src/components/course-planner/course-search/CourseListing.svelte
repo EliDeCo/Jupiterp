@@ -11,6 +11,7 @@ Copyright (C) 2024 Andrew Cupps
     import CourseCondition from "./CourseCondition.svelte";
     import { AngleRightOutline } from "flowbite-svelte-icons";
     import type { Course, Section } from "@jupiterp/jupiterp";
+    import { AutoGen, AutoGenCourseStore } from "../../../stores/CoursePlannerStores";
 
     export let course: Course;
 
@@ -28,27 +29,47 @@ Copyright (C) 2024 Andrew Cupps
     }
 
     let showMoreInfo: boolean = false;
+
+    function toggleCourseInAutogen() {
+        AutoGenCourseStore.update(current => {
+            const alreadyThere = current.some(c => c.courseCode === course.courseCode)
+
+            if (alreadyThere) {
+                //remove
+                return current.filter(c => c.courseCode !== course.courseCode);
+            } else{
+                //add
+                return [...current, course]
+            }
+        });
+    }
+
 </script>
 
 <div class='px-2 my-2 bg-bgSecondaryLight dark:bg-bgSecondaryDark 
             rounded-lg border-2 border-outlineLight dark:border-outlineDark
             border-solid flex flex-col'>
     
-    <!-- Course code and credit count -->
-    <div class='flex flex-row align-middle'>
-        <div class='grow text-left align-middle'>
-            <b>{course.courseCode}</b>
+    <!-- Add to Autogen list -->
+    <button on:click={toggleCourseInAutogen}
+            class = 'text-left'>
+        <!-- Course code and credit count -->
+        <div class='flex flex-row align-middle'>
+            <div class='grow text-left align-middle'>
+                <b>{course.courseCode}</b>
+            </div>
+            <div class='grow text-right text-sm 2xl:text-base align-middle'>
+                Credits: {formatCredits(course.minCredits, course.maxCredits)}
+            </div>
         </div>
-        <div class='grow text-right text-sm 2xl:text-base align-middle'>
-            Credits: {formatCredits(course.minCredits, course.maxCredits)}
-        </div>
-    </div>
 
-    <!-- Course title -->
-    <div class='xl:max-w-[314px] 2xl:max-w-[394px] max-w-[254px]
-                    text-sm 2xl:text-base wrap'>
-        {course.name}
-    </div>
+        <!-- Course title -->
+        <div class='xl:max-w-[314px] 2xl:max-w-[394px] max-w-[254px]
+                        text-sm 2xl:text-base wrap'>
+            {course.name}
+        </div>
+    </button>
+
 
     {#if course.genEds != null && course.genEds.length > 0}
         <div class='w-full flex flex-row justify-start align-center my-1'>
@@ -103,17 +124,18 @@ Copyright (C) 2024 Andrew Cupps
             {/if}
         </div>
     {/if}
-
-    <!-- Sections -->
-    {#if course.sections != null && course.sections.length > 0}
-        {#each course.sections as section}
-            <SectionListing courseCode={course.courseCode}
-                section={section}
-                        course={course} />
-        {/each}
-    {:else}
-        <SectionListing courseCode={course.courseCode}
-            section={pseudoSection()}
-            course={course} />
-    {/if}
+        {#if !$AutoGen}
+            <!-- Sections -->
+            {#if course.sections != null && course.sections.length > 0}
+                {#each course.sections as section}
+                    <SectionListing courseCode={course.courseCode}
+                        section={section}
+                                course={course} />
+                {/each}
+            {:else}
+                <SectionListing courseCode={course.courseCode}
+                    section={pseudoSection()}
+                    course={course} />
+            {/if}
+        {/if}
 </div>

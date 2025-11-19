@@ -40,3 +40,9 @@ export const CourseSearchFilterStore: Writable<FilterParams> = writable({
     serverSideFilters: {},
     clientSideFilters: {}
 });
+
+/** Tracks whether auto schedule generation is enabled */
+export const AutoGen: Writable<boolean> = writable(false);
+
+/** Tracks which courses are selected for autogeneration */
+export const AutoGenCourseStore: Writable<Course[]> = writable([]);

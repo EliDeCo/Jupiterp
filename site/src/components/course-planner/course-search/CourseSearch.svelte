@@ -13,7 +13,9 @@ Copyright (C) 2025 Andrew Cupps
         HoveredSectionStore, 
         CurrentScheduleStore,
         SearchResultsStore,
-        DeptSuggestionsStore
+        DeptSuggestionsStore,
+        AutoGen,
+        AutoGenCourseStore
     } from "../../../stores/CoursePlannerStores";
     import ScheduleSelector from "./ScheduleSelector.svelte";
     import type { Course } from "@jupiterp/jupiterp";
@@ -127,6 +129,17 @@ Copyright (C) 2025 Andrew Cupps
             scrollAcc = 0;
         }
     }
+
+    function removeFromAutoGen(course: Course) {
+        AutoGenCourseStore.update(current => {
+            return current.filter(c => c.courseCode !== course.courseCode);
+        });
+    }
+
+    function generateSchedule() {
+
+    }
+
 </script>
 
 <!-- Layer to exit course search if user taps on the Schedule -->
@@ -179,8 +192,46 @@ Copyright (C) 2025 Andrew Cupps
                             lg:text-base lg:placeholder:text-sm
                             placeholder:text-base py-0">
 
+        <!-- Auto generated schedule option -->
+        <div class='mt-2 ml-1 flex items-center text-sm'>
+            <input id="auto-gen-checkbox" type="checkbox" bind:checked={$AutoGen}
+                class='h-4 w-4 rounded border-outlineLight dark:border-outlineDark' />
+            <label for="auto-gen-checkbox" class='ml-2 select-none'>Automatic schedule generator</label>
+        </div>
+
         <CourseFilters bind:showGenEdMenu={genEdMenuOpen} />
+
     </div>
+
+    {#if $AutoGen}
+        <div class='w-full border-solid relative
+                                border-b-2 border-t-2 p-1 lg:px-0
+                                border-divBorderLight dark:border-divBorderDark'>
+            <div class='flex flex-row w-full gap-3'>
+                <div class='pt-2'>Selected Courses</div>
+                    <button on:click={generateSchedule}
+                            class='px-2 my-2 bg-bgSecondaryLight dark:bg-bgSecondaryDark 
+                            rounded-lg border-2 border-outlineLight dark:border-outlineDark
+                            border-solid text-base'>
+                        Generate Schedules
+                    </button>
+            </div>
+            <div class='flex flex-wrap gap-x-1 gap-y-0'>
+                <!-- Selected Courses for Auto Generation -->
+                {#each $AutoGenCourseStore as course}
+                    <button on:click={() => removeFromAutoGen(course)}
+                            class='px-2 my-2 bg-bgSecondaryLight dark:bg-bgSecondaryDark 
+                            rounded-lg border-2 border-outlineLight dark:border-outlineDark
+                            border-solid text-base'>
+                        {course.courseCode}
+                    </button>
+                {/each}
+            </div>
+            {#if !$AutoGenCourseStore.length}
+                <div class="text-sm italic dark:text-[#8892a8]">No Selected Courses</div>
+            {/if}
+        </div>
+    {/if}
 
     <!-- Course search results & dept suggestions -->
     <div class='grow courses-list overflow-y-scroll overflow-x-none
@@ -226,6 +277,9 @@ Copyright (C) 2025 Andrew Cupps
                 </span>
             </div>
         {/if}
+
+        <!-- Auto Generated Schedules -->
+        
     </div>
 </div>
 
