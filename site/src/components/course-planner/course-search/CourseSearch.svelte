@@ -21,7 +21,7 @@ Copyright (C) 2025 Andrew Cupps
     import type { Course } from "@jupiterp/jupiterp";
     import type { ScheduleSelection } from "../../../types";
     import CourseFilters from "./CourseFilters.svelte";
-    import init, { add } from "../../../../../rust-lib/pkg";
+    import init, { add, error_init } from "../../../../../rust-lib/pkg";
     import { onMount } from "svelte";
 
 
@@ -147,6 +147,7 @@ Copyright (C) 2025 Andrew Cupps
 
     onMount(async () => {
         await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
+        error_init();
     })
 
 
