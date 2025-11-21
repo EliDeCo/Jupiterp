@@ -21,7 +21,7 @@ Copyright (C) 2025 Andrew Cupps
     import type { Course } from "@jupiterp/jupiterp";
     import type { ScheduleSelection } from "../../../types";
     import CourseFilters from "./CourseFilters.svelte";
-    import init, { add, error_init } from "../../../../../rust-lib/pkg";
+    import init, { error_init, test, CourseRust } from "../../../../../rust-lib/pkg";
     import { onMount } from "svelte";
 
 
@@ -150,9 +150,15 @@ Copyright (C) 2025 Andrew Cupps
         error_init();
     })
 
-
     function generateSchedule() {
-        show = add(show);
+        let courses: Course[] = [];
+        AutoGenCourseStore.subscribe((selected) => courses = selected);
+
+        let rust_courses: CourseRust[] = courses.map((c) =>
+            new CourseRust(c.courseCode)
+        );
+
+        test(rust_courses);
     }
 </script>
 

@@ -1,5 +1,7 @@
 use wasm_bindgen::prelude::*;
 use std::panic;
+mod structs;
+use structs::*;
 
 #[wasm_bindgen]
 /// Sets the panic hook so all panics are forwarded to console.error
@@ -20,8 +22,6 @@ macro_rules! console_log {
 }
 
 #[wasm_bindgen]
-pub fn add(a: u32) -> u32 {
-    console_log!("Added {}", a);
-    a + 1
+pub fn test(a: Vec<CourseRust>) {
+    console_log!("{}", a.iter().map(|c| c.courseCode.as_str() ).collect::<Vec<_>>().join(" "));
 }
-
