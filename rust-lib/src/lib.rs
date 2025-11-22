@@ -22,6 +22,19 @@ macro_rules! console_log {
 }
 
 #[wasm_bindgen]
-pub fn test(a: Vec<CourseRust>) {
-    console_log!("{}", a.iter().map(|c| c.courseCode.as_str() ).collect::<Vec<_>>().join(" "));
+/// Takes an input of Course[] and returns a list of viable schedules
+pub fn get_schedules(val: JsValue) {
+    let from_serde: Vec<Course> = serde_wasm_bindgen::from_value(val).unwrap_or_default();
+    for course in from_serde {
+        let section = course.sections.unwrap_or_default()[0].clone();
+        console_log!("{}: {} with {}, first meeting is {}-{} in {}. {} open seats",
+            course.course_code,
+            section.section_code,
+            section.instructors.join(" & "),
+            section.meetings[0].classtime.start,
+            section.meetings[0].classtime.end,
+            section.meetings[0].location.building,
+            section.open_seats,
+        );
+    }
 }
