@@ -7,8 +7,9 @@ Copyright (C) 2025 Andrew Cupps
 <script lang='ts'>
     import { fade } from "svelte/transition";
     import CourseListing from "./CourseListing.svelte";
+    import ScheduleListing from "./ScheduleListing.svelte";
     import { deptCodeToName, pendingResults, setSearchResults } from "../../../lib/course-planner/CourseSearch";
-    import { appendHoveredSection, schedulify } from "../../../lib/course-planner/Schedule";
+    import { appendHoveredSection } from "../../../lib/course-planner/Schedule";
     import {
         HoveredSectionStore, 
         CurrentScheduleStore,
@@ -19,13 +20,14 @@ Copyright (C) 2025 Andrew Cupps
     } from "../../../stores/CoursePlannerStores";
     import ScheduleSelector from "./ScheduleSelector.svelte";
     import type { Course } from "@jupiterp/jupiterp";
-    import type { ScheduleSelection, Schedule } from "../../../types";
+    import type { ScheduleSelection } from "../../../types";
     import CourseFilters from "./CourseFilters.svelte";
     import init, { 
         error_init, 
         get_schedules,
     } from "../../../../../rust-lib/pkg";
     import { onMount } from "svelte";
+
 
 
     const FILTER_SCROLL_COLLAPSE_THRESHOLD = 100;
@@ -157,14 +159,17 @@ Copyright (C) 2025 Andrew Cupps
         error_init();
     })
 
-    
+    let schedules: ScheduleSelection[][] = [];
 
     function generateSchedule() {
+        searchInput = '';
+        searchResults = [];
+
         let courses: Course[] = [];
         AutoGenCourseStore.subscribe((selected) => courses = selected);
 
         //get list of possible schedules
-        let schedules: ScheduleSelection[][] = get_schedules(courses, buildings);
+        schedules = get_schedules(courses, buildings);
 
         
         if (schedules.length === 0) {
@@ -314,9 +319,18 @@ Copyright (C) 2025 Andrew Cupps
                 </span>
             </div>
         {/if}
-
+        <div class='flex flex-col w-full border-solid relative
+                        border-b-2 border-t-2 p-1 lg:px-0
+                        border-divBorderLight dark:border-divBorderDark'>
         <!-- Auto Generated Schedules -->
-        
+            {#if $AutoGen && schedules.length === 0}
+                <div class="text-sm italic dark:text-[#8892a8]">No possible schedules with the given parameters</div>
+            {:else if $AutoGen}
+                {#each schedules as scheduleMatch, i}
+                    <ScheduleListing schedule={scheduleMatch} index={i} />
+                {/each}
+            {/if}
+        </div>
     </div>
 </div>
 
