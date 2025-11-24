@@ -28,6 +28,11 @@ enum Day {
  * @returns A `Schedule` built from `selections`
  */
 export function schedulify(selections: ScheduleSelection[]): Schedule {
+  if (!Array.isArray(selections)) {
+    console.error("schedulify received invalid input:", selections);
+    selections = [];
+  }
+    
     const schedule: Schedule = {
         monday: [],
         tuesday: [],
