@@ -6,8 +6,8 @@ use std::collections::HashMap;
 const WALK_SPEED: f32 = 1.42;
 //const WALK_SPEED: f32 = 100.;
 //earlist and latest time to go to class
-const EARLIST: u32 = 100;
-const LATEST: u32 = 2300;
+const EARLIST: u32 = 1000;
+const LATEST: u32 = 1500;
 
 
 /// Convert HHMM -> total minutes since midnight and compare
@@ -30,6 +30,18 @@ pub fn is_conflict(
     earliest: u32,
     latest: u32,
 ) -> bool {
+    //TO DEBUG:
+    let tester: bool;
+    if (0 == 1)
+        && section1.course == "FREN103"
+        && section1.section == "0301"
+        && section2.course == "PHYS260"
+        && section2.section == "0201"
+    {
+        tester = true;
+    } else {
+        tester = false;
+    }
 
     for day in 1..6 {
         //if the day is present in both sections
@@ -37,14 +49,24 @@ pub fn is_conflict(
             (section1.classtimes.get(&day), section2.classtimes.get(&day))
         {
             //compare every meeting on every day from both courses with each other
-            'loop1: for times1 in times_from_1 {
-                'loop2: for times2 in times_from_2 {
+            for times1 in times_from_1 {
+                for times2 in times_from_2 {
                     //if the class starts or ends to early, this section is deemed a conflict
                     if times1.start < earliest
                         || times2.start < earliest
                         || times1.end > latest
                         || times2.end > latest
                     {
+                        if tester {
+                            println!(
+                                "On day {}, {}-{} OR {}-{} ends too late/starts too early",
+                                day,
+                                section1.course,
+                                section1.section,
+                                section2.course,
+                                section2.section
+                            );
+                        }
                         return true;
                     }
 
@@ -54,6 +76,16 @@ pub fn is_conflict(
                         || times1.end == times2.start
                         || times1.end == times2.end
                     {
+                        if tester {
+                            println!(
+                                "On day {}, {}-{} conflicts with {}-{}: Start/End Shared",
+                                day,
+                                section1.course,
+                                section1.section,
+                                section2.course,
+                                section2.section
+                            );
+                        }
                         return true;
                     }
 
@@ -66,18 +98,19 @@ pub fn is_conflict(
 
                     //if the first one ends after the second one starts, they overlap
                     if first.end > second.start {
+                        if tester {
+                            println!(
+                                "On day {}, {}-{} conflicts with {}-{}: Overlap Trouble",
+                                day,
+                                section1.course,
+                                section1.section,
+                                section2.course,
+                                section2.section
+                            );
+                        }
                         return true;
                     } else {
-                        //skip if one of the courses is asyncronous
-                        if first.building == "OnlineSync" {
-                            continue 'loop1;
-                        } 
-                        if second.building == "OnlineSync" {
-                            continue 'loop2;
-                        }
-
-                        //if both classes are in person, test to see if there is enough time to walk
-
+                        //test to see if there is enough time to walk
                         let time_between: u32 = time_between(first.end, second.start) * 60; //time between classes in seconds
 
                         //println!("{}", &first.building);
@@ -115,6 +148,17 @@ pub fn is_conflict(
 
                         if time_between as f32 - (max_distance / walk_speed) < 300. {
                             //if we can't get there 5 minutes early, deem this section as a conflict
+                            if tester {
+                                println!(
+                                    "On day {}, {}-{} conflicts with {}-{}: Cant get there in time",
+                                    day,
+                                    section1.course,
+                                    section1.section,
+                                    section2.course,
+                                    section2.section
+                                );
+                            }
+                            //println!("Cant walk");
                             return true;
                         }
                     }

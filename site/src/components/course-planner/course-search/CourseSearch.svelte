@@ -164,18 +164,8 @@ Copyright (C) 2025 Andrew Cupps
         AutoGenCourseStore.subscribe((selected) => courses = selected);
 
         //get list of possible schedules
-        let schedules: ScheduleSelection[][] = get_schedules(courses, buildings);
-
-        
-        if (schedules.length === 0) {
-            console.log("No possible schedules with the given parameters");
-        } else {
-            //test by putting the first schedule into CurrentScheduleStore
-            CurrentScheduleStore.update(current => ({
-                ...current,
-                selections: schedules[0]
-            }));
-        }  
+        let schedules: Schedule[] = get_schedules(courses, buildings).map(s => schedulify(s));
+           
     }
 </script>
 

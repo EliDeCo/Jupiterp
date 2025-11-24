@@ -226,7 +226,7 @@ pub struct GenEd {
 ///Makes a cache of all the usefull data from the retrieved courses and sections
 pub fn make_course_cache(courses_raw: &Vec<Course>) -> Coursedata {
     return courses_raw.into_iter().map(|course|
-        (course.course_code.clone(), course.sections.clone().unwrap_or_default().into_iter().enumerate().map(|(i,section)|{
+        (course.course_code.clone(), course.sections.clone().unwrap_or_default().into_iter().map(|section|{
             (section.section_code.clone(), ScheduleSelection {
                 course: CourseBasic { 
                     course_code: course.course_code.clone(), 
@@ -249,7 +249,7 @@ pub fn make_course_cache(courses_raw: &Vec<Course>) -> Coursedata {
                 },
                 hover: false,
                 differences: SelectionDifferences::all_false(),
-                color_number: i as i32 //changes the color for each section
+                color_number: -1
             })
         }).collect())
     ).collect();
