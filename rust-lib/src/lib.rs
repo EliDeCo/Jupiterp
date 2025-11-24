@@ -1,12 +1,14 @@
 mod serde_structs;
 mod sorting_structs;
 mod sorting;
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 use std::panic;
 use serde_structs::Course;
 use sorting_structs::*;
 use std::collections::HashMap;
 use crate::serde_structs::{Coursedata, ScheduleSelection, make_course_cache};
+use serde_wasm_bindgen::{from_value, Serializer};
 
 //TODO: impliment GenEd
 
@@ -49,7 +51,7 @@ pub fn get_schedules(courses: JsValue, building_data: JsValue) -> JsValue {
     let course_map: CourseMap = from_serde.into_iter().map(|f|f.to_coursemap()).collect();
 
     //get building location data
-    let buildings: HashMap<String, BuildingData> = match serde_wasm_bindgen::from_value(building_data.clone()) {
+    let buildings: HashMap<String, BuildingData> = match from_value(building_data.clone()) {
         Ok(val) => val,
         Err(err) => {
             console_log!("Building data deserialize error: {}", err);
@@ -69,11 +71,21 @@ pub fn get_schedules(courses: JsValue, building_data: JsValue) -> JsValue {
             .get(&section.course)
             .and_then(|c|c.get(&section.section))
             .cloned()
-            .unwrap_or_default()
+            .unwrap_throw()
         ).collect()
     ).collect();
 
-    let js_val = serde_wasm_bindgen::to_value(&output).unwrap_or_default();
+
+    
+    //let js_val = to_value(&output).unwrap_or_default();
+
+    //create a custom serializer to add None -> Null Functionality
+    let js_val: JsValue = output.serialize(&Serializer::json_compatible()).unwrap_throw();
+
+    //log first schedule for tessting
+    //let log_val: JsValue = output[0].serialize(&Serializer::json_compatible()).unwrap_throw();
+    //log_js(&log_val);
+
     //log_js(&js_val);
     return js_val;
 }
