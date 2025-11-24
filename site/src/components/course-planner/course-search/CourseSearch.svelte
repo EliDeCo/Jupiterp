@@ -8,7 +8,7 @@ Copyright (C) 2025 Andrew Cupps
     import { fade } from "svelte/transition";
     import CourseListing from "./CourseListing.svelte";
     import { deptCodeToName, pendingResults, setSearchResults } from "../../../lib/course-planner/CourseSearch";
-    import { appendHoveredSection } from "../../../lib/course-planner/Schedule";
+    import { appendHoveredSection, schedulify } from "../../../lib/course-planner/Schedule";
     import {
         HoveredSectionStore, 
         CurrentScheduleStore,
@@ -19,7 +19,7 @@ Copyright (C) 2025 Andrew Cupps
     } from "../../../stores/CoursePlannerStores";
     import ScheduleSelector from "./ScheduleSelector.svelte";
     import type { Course } from "@jupiterp/jupiterp";
-    import type { ScheduleSelection } from "../../../types";
+    import type { ScheduleSelection, Schedule } from "../../../types";
     import CourseFilters from "./CourseFilters.svelte";
     import init, { 
         error_init, 
@@ -145,19 +145,27 @@ Copyright (C) 2025 Andrew Cupps
         });
     }
 
-    let show = 0;
+    let buildings: any;
 
+    async function getBuildingData() {
+        buildings = await (await fetch('/buildings.json')).json();
+    }
 
     onMount(async () => {
         await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
+        await getBuildingData();
         error_init();
     })
+
+    
 
     function generateSchedule() {
         let courses: Course[] = [];
         AutoGenCourseStore.subscribe((selected) => courses = selected);
 
-        get_schedules(courses);
+        //get list of possible schedules
+        let schedules: Schedule[] = get_schedules(courses, buildings).map(s => schedulify(s));
+           
     }
 </script>
 
@@ -188,7 +196,6 @@ Copyright (C) 2025 Andrew Cupps
         <div>
             Spring 2026
         </div>
-        <div>{show}</div>
         <div class='grow text-right'>
             Credits: {totalCredits}
         </div>

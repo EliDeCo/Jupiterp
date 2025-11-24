@@ -5,9 +5,10 @@ use wasm_bindgen::prelude::*;
 use std::panic;
 use serde_structs::Course;
 use sorting_structs::*;
-//use sorting::{get_potential_schedules, schedules_for_display, schedules_with_alternatives};
+use std::collections::HashMap;
+use crate::serde_structs::{Coursedata, ScheduleSelection, make_course_cache};
 
-//TODO: Impliment Professor Ratings
+//TODO: impliment GenEd
 
 #[wasm_bindgen]
 /// Sets the panic hook so all panics are forwarded to console.error
@@ -30,22 +31,49 @@ macro_rules! console_log {
 }
 
 #[wasm_bindgen]
-/// Takes an input of Course[] and returns a list of viable schedules
-pub fn get_schedules(val: JsValue) {
-    let from_serde: Vec<Course>;
-    match serde_wasm_bindgen::from_value(val.clone()) {
-        Ok(v) => { from_serde = v; }
-        Err(e) => {
-            from_serde = Vec::new();
-            console_log!("deserialize error: {}", e);
-            log_js(&val);
+/// Takes an input of Course[] and json, and returns ScheduleSelection[][] (a list of schedules)
+pub fn get_schedules(courses: JsValue, building_data: JsValue) -> JsValue {
+    // get courses
+    let from_serde: Vec<Course> = match serde_wasm_bindgen::from_value(courses.clone()) {
+        Ok(val) => val,
+        Err(err) => {
+            console_log!("Course data deserialize error: {}", err);
+            log_js(&courses);
+            Vec::new()
         }
-    }
+    };
+    //format all sections into ScheduleSelection and save for later
+    let course_cache: Coursedata = make_course_cache(&from_serde);
+
+    //format all sections for schedule making
     let course_map: CourseMap = from_serde.into_iter().map(|f|f.to_coursemap()).collect();
-    if course_map.is_empty() {
-        console_log!("Coursemap is empty!")
-    } else {
-        let js_val = serde_wasm_bindgen::to_value(&course_map).unwrap();
-        log_js(&js_val);
-    }
+
+    //get building location data
+    let buildings: HashMap<String, BuildingData> = match serde_wasm_bindgen::from_value(building_data.clone()) {
+        Ok(val) => val,
+        Err(err) => {
+            console_log!("Building data deserialize error: {}", err);
+            log_js(&building_data);
+            HashMap::new()
+        }
+    };
+
+    
+
+    //generate all potential schedules
+    let potential_schedules: Vec<Schedule> = sorting::get_potential_schedules(course_map, &buildings);
+
+    //convert to ScheduleSelection[][] using the saved cache
+    let output: Vec<Vec<ScheduleSelection>> = potential_schedules.iter().map(|schedule|
+        schedule.iter().map(|section| course_cache
+            .get(&section.course)
+            .and_then(|c|c.get(&section.section))
+            .cloned()
+            .unwrap_or_default()
+        ).collect()
+    ).collect();
+
+    let js_val = serde_wasm_bindgen::to_value(&output).unwrap_or_default();
+    //log_js(&js_val);
+    return js_val;
 }

@@ -1,4 +1,4 @@
-use crate::sorting::{is_conflict, un_military_time};
+use crate::{sorting::is_conflict};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -7,11 +7,10 @@ pub type CourseMap = HashMap<String, SectionMap>;
 pub type SectionMap = HashMap<String, Section>;
 pub type Classtimes = HashMap<u32, Vec<StartEnd>>;
 pub type ClasstimesForHumans = Vec<String>;
-pub type ScheduleWithAlternates = Vec<(Section, Vec<Section>)>; // a schedule where each section has a list of alternates
 pub type BuildingMap = HashMap<String, BuildingData>;
-pub type DisplaySchedule = Vec<DisplaySection>;
-
 pub type Schedule = Vec<Section>;
+pub type ScheduleWithAlternates = Vec<(Section, Vec<Section>)>; // a schedule where each section has a list of alternates
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Section {
     pub professor: ProfData,
@@ -21,14 +20,14 @@ pub struct Section {
     pub seats: [u32; 3], //Total, open, waitlisted
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct StartEnd {
     pub building: String,
     pub start: u32,
     pub end: u32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct BuildingData {
     //pub name: String,
     //pub id: String,
@@ -52,30 +51,6 @@ pub struct DisplaySection {
     pub alternates: String,
 }
 
-//The next two types are the onces that the course API returns
-#[derive(Debug, Deserialize)]
-pub struct SectionInput {
-    pub course: String,
-    //section_id: String,
-    //semester: String,
-    pub number: String,
-    pub seats: String,
-    pub meetings: Vec<MeetTime>,
-    pub open_seats: String,
-    pub waitlist: String,
-    pub instructors: Vec<String>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct MeetTime {
-    pub days: String,
-    //room: String,
-    pub building: String,
-    //classtype: String,
-    pub start_time: String,
-    pub end_time: String,
-}
-
 //this is the type that the professor rating API returns
 #[derive(Debug, Deserialize, Default, PartialEq)]
 pub struct ProfRatingInput {
@@ -93,6 +68,7 @@ impl PartialEq for Section {
 }
 
 impl Section {
+    #[allow(dead_code)] //functionality for generating alternates may be added in the future
     ///Finds an alternate sections that can replace this section in the given schedule
     pub fn find_alt(
         &self,
@@ -132,63 +108,4 @@ impl Section {
 
         return alts;
     }
-    ///Takes class times stored with numbers for computers to stored by days for humans
-    pub fn humanize_times(&self) -> ClasstimesForHumans {
-        let mut classtimes_human: HashMap<String, Vec<String>> = HashMap::new();
-        let key: HashMap<String, usize> = HashMap::from([
-            ("M".to_string(), 0),
-            ("Tu".to_string(), 1),
-            ("W".to_string(), 2),
-            ("Th".to_string(), 3),
-            ("F".to_string(), 4),
-        ]);
-        for (day_num, times) in &self.classtimes {
-            let day_str: &'static str = match day_num {
-                1 => "M",
-                2 => "Tu",
-                3 => "W",
-                4 => "Th",
-                5 => "F",
-                _ => "Unknown",
-            };
-
-            for time in times {
-                let time_str = format!(
-                    "{}-{} in {}",
-                    un_military_time(time.start),
-                    un_military_time(time.end),
-                    time.building
-                );
-                if let Some(meeting) = classtimes_human.get_mut(&time_str) {
-                    meeting.push(day_str.to_string());
-                } else {
-                    classtimes_human.insert(time_str, vec![day_str.to_string()]);
-                }
-            }
-        }
-
-        //sort days in chronological order
-        for (_, days) in classtimes_human.iter_mut() {
-            let mut days_sorted: Vec<String> = vec![
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-                String::new(),
-            ];
-            for day in days.iter() {
-                days_sorted[key[day.as_str()]] = day.to_string();
-            }
-            days_sorted.retain(|d| !d.is_empty());
-            *days = days_sorted;
-        }
-
-        return classtimes_human
-            .into_iter()
-            .map(|(time, days)| days.join("") + " " + &time)
-            .collect();
-    }
 }
-
-
-

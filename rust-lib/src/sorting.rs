@@ -9,20 +9,7 @@ const WALK_SPEED: f32 = 1.42;
 const EARLIST: u32 = 1000;
 const LATEST: u32 = 1500;
 
-///Turns computer formatted time into human formatted time
-pub fn un_military_time(time: u32) -> String {
-    let mut to_return: String;
-    if time >= 1300 {
-        to_return = (time - 1200).to_string() + "pm";
-    } else if time == 1200 {
-        to_return = time.to_string() + "pm";
-    } else {
-        to_return = time.to_string() + "am";
-    }
 
-    to_return.insert(to_return.len() - 4, ':');
-    to_return
-}
 /// Convert HHMM -> total minutes since midnight and compare
 pub fn time_between(first: u32, second: u32) -> u32 {
     let to_minutes = |time: u32| -> u32 {
@@ -182,6 +169,7 @@ pub fn is_conflict(
     false
 }
 
+#[allow(dead_code)] //Rating may be done here in the future
 ///gives a rating of the inputted schedule for ordering
 pub fn rating(schedule: &ScheduleWithAlternates, all_alternates: &Vec<String>) -> f32 {
     //Sum of all professor ratings
@@ -233,37 +221,6 @@ pub fn rating(schedule: &ScheduleWithAlternates, all_alternates: &Vec<String>) -
     return prof_rating;
 }
 
-///Formats alternates to be nice on the eyes
-pub fn format_alternates(sections: &Vec<Section>, threshold: usize) -> String {
-    //count occurrences
-    let mut counts: HashMap<&String, usize> = HashMap::new();
-    for s in sections {
-        *counts.entry(&s.course).or_default() += 1;
-    }
-
-    //reconstruct through occurences
-    let mut seen: Vec<String> = Vec::new();
-    let mut output: Vec<String> = Vec::new();
-    for s in sections {
-        let course = s.course.clone();
-        let count = counts.get(&course).copied().unwrap_or(0);
-        if count > threshold {
-            //compact form showing abundance of section options
-            if !seen.contains(&course) {
-                output.push(format!("{}: XXXX, ", course));
-                seen.push(course);
-            }
-        } else {
-            //normal format
-            output.push(format!("{}: {}, ", course, s.section));
-        }
-    }
-
-    output.sort();
-
-    return output.join("");
-}
-
 ///compute median of a collection of floats
 fn median(numbers: &Vec<f32>) -> f32 {
     let mut numbers = numbers.clone();
@@ -282,58 +239,16 @@ fn median(numbers: &Vec<f32>) -> f32 {
     }
 }
 
-///converts the given convential time in string form into military time in integer form
-pub fn to_military(mut time: String) -> u32 {
-    let time2: String = time.clone();
-    time.retain(|c: char| c.is_numeric());
-    let nums: u32 = time.parse().unwrap_or_default();
-    if time2.contains("p") {
-        if nums >= 1200 && nums <= 1259 {
-            return nums;
-        } else {
-            return nums + 1200;
-        }
-    } else if time2.contains("a") {
-        return nums;
-    } else {
-        //happens when the time is unknown
-        //atleast I think so?
-        return 0;
-    }
-}
-
-///converts the given days in string form into a vector of numbers representing those days
-pub fn get_days(input: String) -> Vec<u32> {
-    let mut output: Vec<u32> = Vec::new();
-    let mut buffer: String = String::new();
-    for char in input.chars() {
-        if char == 'M' {
-            output.push(1);
-        } else if char == 'W' {
-            output.push(3);
-        } else if char == 'F' {
-            output.push(5);
-        } else {
-            //if it is one of the two letter combinations, use the buffer to aid in recognition
-            buffer.push(char);
-            if buffer == String::from("Tu") {
-                output.push(2);
-                buffer.clear();
-            } else if buffer == String::from("Th") {
-                output.push(4);
-                buffer.clear();
-            }
-        }
-    }
-
-    output
-}
-
 ///Generates all potential schedules from the desired courses
 pub fn get_potential_schedules(
     desired_courses: CourseMap,
     buildings: &BuildingMap,
 ) -> Vec<Schedule> {
+    //return nothing if empty
+    if desired_courses.is_empty() {
+        return Vec::new();
+    }
+
     // Convert to a Vec so we can index only the first course.
     let mut desired_courses: Vec<_> = desired_courses.into_iter().collect();
     desired_courses.sort_by(|a, b| a.0.cmp(&b.0));
@@ -377,6 +292,7 @@ pub fn get_potential_schedules(
     potential_schedules
 }
 
+#[allow(dead_code)] //functionality for generating alternates may be added in the future
 ///Computes possible alternates for all the given potential schedules
 pub fn schedules_with_alternatives(
     potential_schedules: Vec<Schedule>,
@@ -418,34 +334,4 @@ pub fn schedules_with_alternatives(
     });
 
     schedules_with_alternates
-}
-
-///Formats schedules with alternates for display
-pub fn schedules_for_display(
-    schedules_with_alternates: Vec<ScheduleWithAlternates>,
-) -> Vec<DisplaySchedule> {
-    let mut all_schedules: Vec<DisplaySchedule> = Vec::new();
-    for schedule in schedules_with_alternates {
-        all_schedules.push(
-            schedule
-                .iter()
-                .map(|(s, a)| DisplaySection {
-                    professor: s.professor.clone(),
-                    classtimes: s.humanize_times(),
-                    course: s.course.clone(),
-                    section: s.section.clone(),
-                    seats: s.seats.clone(),
-                    alternates: {
-                        //consolidate excess alternates and format for display
-                        if a.is_empty() {
-                            String::from("N/A")
-                        } else {
-                            format_alternates(a, 4)
-                        }
-                    },
-                })
-                .collect(),
-        );
-    }
-    all_schedules
 }

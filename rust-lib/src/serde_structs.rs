@@ -1,18 +1,24 @@
-use serde::Deserialize;
-use crate::sorting_structs::*;
+use serde::{Deserialize, Serialize};
+use crate::{log_str, sorting_structs::*};
 use std::collections::HashMap;
 
+//types for storing course and section data in the correct format for sending to svelte
+pub type Coursedata = HashMap<String,SectionData>;
+pub type SectionData = HashMap<String,ScheduleSelection>;
 
 #[derive(Deserialize)]
 pub struct Course {
     #[serde(rename = "courseCode")]
     pub course_code: String,
-    //pub name: String,
-    //pub min_credits: u32,
-    //pub maxCredits: Option<u32>,
-    //pub gen_eds: Option<Vec<GenEd>>,
-    //pub conditions: Option<Vec<String>>,
-    //pub description: Option<String>,
+    pub name: String,
+    #[serde(rename = "minCredits")]
+    pub min_credits: u32,
+    #[serde(rename = "maxCredits")]
+    pub max_credits: Option<u32>,
+    #[serde(rename = "genEds")]
+    gen_eds: Option<Vec<GenEd>>,
+    pub conditions: Option<Vec<String>>,
+    pub description: Option<String>,
     pub sections: Option<Vec<CourseSection>>
 }
 
@@ -22,7 +28,7 @@ impl Course {
         let mut section_map: SectionMap = HashMap::new();
         if let Some(sections) = self.sections {
             for sec in sections {
-                let professor: ProfData = ProfData { name: sec.instructors.join(" & "), rating: 0.0 };
+                let professor: ProfData = ProfData { name: sec.instructors[0].to_owned(), rating: 0.0 };
                 let classtimes: Classtimes = classmeet_convert(sec.meetings);
                 let course: String = sec.course_code;
                 let section: String = sec.section_code.clone();
@@ -32,13 +38,14 @@ impl Course {
             }
             return (self.course_code, section_map);
         } else {
+            log_str(&format!("No courses sections for {}", self.course_code));
             return (self.course_code, HashMap::new());
         }
     }
 }
 
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Default, Clone)]
 pub struct CourseSection {
     #[serde(rename = "courseCode")]
     pub course_code: String,
@@ -51,11 +58,11 @@ pub struct CourseSection {
     #[serde(rename = "totalSeats")]
     pub total_seats: u32,
     pub waitlist: u32,
-    //holdfile: Option<u32>
+    holdfile: Option<u32>
 }
 
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum ClassMeetingFull {
     //normal classes
@@ -68,6 +75,12 @@ pub enum ClassMeetingFull {
     Text(String)
 }
 
+impl Default for ClassMeetingFull {
+    fn default() -> Self {
+        ClassMeetingFull::Text(String::from("TBA"))
+    }
+}
+
 #[derive(Deserialize)]
 pub struct ClassMeeting {
     classtime: Classtime,
@@ -75,14 +88,14 @@ pub struct ClassMeeting {
 }
 
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize, Clone, Default, Serialize)]
 pub struct Classtime {
     pub days: String,
     pub start: f32,
     pub end: f32,
 }
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize, Default, Serialize, Clone)]
 pub struct Location {
     pub building: String,
     //room: Option<String>,
@@ -96,7 +109,21 @@ fn classmeet_convert(input: Vec<ClassMeetingFull>) -> Classtimes {
             ClassMeetingFull::Detailed { classtime, location } => {
                 ClassMeeting { classtime, location }
             }
-            _ => continue,
+            ClassMeetingFull::Text(t) => {
+                //store abnormal class meetings in day 0, reusing the building field of StartEnd to store which type it is
+                let abnormal: StartEnd = StartEnd { 
+                    building: t, 
+                    start: 0, 
+                    end: 0 
+                };
+                if let Some(day_meetings) = output.get_mut(&0) {
+                    day_meetings.push(abnormal);
+                } else {
+                    output.insert(0, vec![abnormal]);
+                }
+                continue;
+
+            }
         };
 
 
@@ -114,8 +141,8 @@ fn classmeet_convert(input: Vec<ClassMeetingFull>) -> Classtimes {
         //add format start and end times for each day
         let start_end: StartEnd = StartEnd { 
             building, 
-            start: fmt_startend_time(meeting.classtime.start), 
-            end: fmt_startend_time(meeting.classtime.end)
+            start: time_fmt(meeting.classtime.start), 
+            end: time_fmt(meeting.classtime.end)
         };
         
         //add this meeting to the output, adding the day if it doesn't already exist
@@ -132,8 +159,98 @@ fn classmeet_convert(input: Vec<ClassMeetingFull>) -> Classtimes {
     return output;
 }
 
-fn fmt_startend_time(time: f32) -> u32 {
+///converts from Jupiterp's way of storing time to the rust scheduling program's way
+fn time_fmt(time: f32) -> u32 {
     let hours = time.floor() as u32;
     let minutes = ((time - hours as f32) * 60.0).round() as u32;
     hours * 100 + minutes
+}
+
+#[derive(Serialize, Clone, Default)]
+pub struct ScheduleSelection {
+    pub course: CourseBasic,
+    pub section: CourseSection,
+    pub hover: bool,
+    pub differences: SelectionDifferences,
+    #[serde(rename = "colorNumber")]
+    pub color_number: i32,   
+}
+
+#[derive(Serialize, Clone, Default)]
+pub struct CourseBasic {
+    #[serde(rename = "courseCode")]
+    pub course_code: String,
+    name: String,
+    #[serde(rename = "minCredits")]
+    pub min_credits: u32,
+    #[serde(rename = "maxCredits")]
+    pub max_credits: Option<u32>,
+    #[serde(rename = "genEds")]
+    gen_eds: Option<Vec<GenEd>>,
+    conditions: Option<Vec<String>>,
+    description: Option<String>,
+}
+
+#[derive(Serialize, Clone, Default)]
+pub struct SelectionDifferences {
+    pub instructors: bool,
+    #[serde(rename = "numMeetings")]
+    pub num_meetings: bool,
+    #[serde(rename = "meetingType")]
+    pub meeting_type: bool,
+    #[serde(rename = "meetingTime")]
+    pub meeting_time: bool,
+    #[serde(rename = "meetingLocation")]
+    pub meeting_location: bool,
+}
+
+impl SelectionDifferences {
+    pub fn all_false() -> Self {
+        Self { 
+            instructors: false, 
+            num_meetings: false, 
+            meeting_type: false, 
+            meeting_time: false, 
+            meeting_location: false 
+        }
+    }
+}
+
+
+#[derive(Serialize, Clone, Deserialize)]
+pub struct GenEd {
+    pub code: String,
+    pub name: String,
+}
+
+///Makes a cache of all the usefull data from the retrieved courses and sections
+pub fn make_course_cache(courses_raw: &Vec<Course>) -> Coursedata {
+    return courses_raw.into_iter().map(|course|
+        (course.course_code.clone(), course.sections.clone().unwrap_or_default().into_iter().map(|section|{
+            (section.section_code.clone(), ScheduleSelection {
+                course: CourseBasic { 
+                    course_code: course.course_code.clone(), 
+                    name: course.name.clone(), 
+                    min_credits: course.min_credits, 
+                    max_credits: course.max_credits,
+                    gen_eds: course.gen_eds.clone(),
+                    conditions: course.conditions.clone(), 
+                    description: course.description.clone() 
+                },
+                section: CourseSection { 
+                    course_code: course.course_code.clone(), 
+                    section_code: section.section_code, 
+                    instructors: section.instructors, 
+                    meetings: section.meetings, 
+                    open_seats: section.open_seats, 
+                    total_seats: section.total_seats, 
+                    waitlist: section.waitlist, 
+                    holdfile: section.holdfile 
+                },
+                hover: false,
+                differences: SelectionDifferences::all_false(),
+                color_number: -1
+            })
+        }).collect())
+    ).collect();
 }
