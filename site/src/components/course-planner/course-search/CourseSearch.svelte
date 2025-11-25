@@ -160,13 +160,14 @@ Copyright (C) 2025 Andrew Cupps
     })
 
     let schedules: ScheduleSelection[][] = [];
+    let courses: Course[] = [];
+    AutoGenCourseStore.subscribe((selected) => courses = selected);
 
     function generateSchedule() {
         searchInput = '';
         searchResults = [];
 
-        let courses: Course[] = [];
-        AutoGenCourseStore.subscribe((selected) => courses = selected);
+
 
         //get list of possible schedules
         schedules = get_schedules(courses, buildings);
@@ -174,13 +175,7 @@ Copyright (C) 2025 Andrew Cupps
         
         if (schedules.length === 0) {
             console.log("No possible schedules with the given parameters");
-        } else {
-            //test by putting the first schedule into CurrentScheduleStore
-            CurrentScheduleStore.update(current => ({
-                ...current,
-                selections: schedules[0]
-            }));
-        }  
+        }
     }
 </script>
 

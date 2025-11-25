@@ -31,17 +31,17 @@ Copyright (C) 2024 Andrew Cupps
     let showMoreInfo: boolean = false;
 
     function toggleCourseInAutogen() {
-        AutoGenCourseStore.update(current => {
-            const alreadyThere = current.some(c => c.courseCode === course.courseCode)
-
-            if (alreadyThere) {
-                //remove
-                return current.filter(c => c.courseCode !== course.courseCode);
-            } else{
-                //add
-                return [...current, course]
-            }
-        });
+        if ($AutoGen) {
+            AutoGenCourseStore.update(current => {
+                if (current.some(c => c.courseCode === course.courseCode)) {
+                    //remove
+                    return current.filter(c => c.courseCode !== course.courseCode);
+                } else{
+                    //add
+                    return [...current, course]
+                }
+            });
+        }
     }
 
 </script>
