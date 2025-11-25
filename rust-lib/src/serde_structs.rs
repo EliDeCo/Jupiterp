@@ -28,13 +28,11 @@ impl Course {
         let mut section_map: SectionMap = HashMap::new();
         if let Some(sections) = self.sections {
             for sec in sections {
-                let professor: ProfData = ProfData { name: sec.instructors[0].to_owned(), rating: 0.0 };
                 let classtimes: Classtimes = classmeet_convert(sec.meetings);
                 let course: String = sec.course_code;
                 let section: String = sec.section_code.clone();
-                let seats: [u32; 3] = [sec.total_seats, sec.open_seats, sec.waitlist];
 
-                section_map.insert(sec.section_code, Section { professor, classtimes, course, section, seats });
+                section_map.insert(sec.section_code, Section { classtimes, course, section });
             }
             return (self.course_code, section_map);
         } else {
@@ -176,6 +174,13 @@ pub struct ScheduleSelection {
     pub color_number: i32,   
 }
 
+impl ScheduleSelection {
+    pub fn set_color(mut self, num: i32) -> Self {
+        self.color_number = num;
+        return self;
+    }
+}
+
 #[derive(Serialize, Clone, Default)]
 pub struct CourseBasic {
     #[serde(rename = "courseCode")]
@@ -226,7 +231,7 @@ pub struct GenEd {
 ///Makes a cache of all the usefull data from the retrieved courses and sections
 pub fn make_course_cache(courses_raw: &Vec<Course>) -> Coursedata {
     return courses_raw.into_iter().map(|course|
-        (course.course_code.clone(), course.sections.clone().unwrap_or_default().into_iter().enumerate().map(|(i,section)|{
+        (course.course_code.clone(), course.sections.clone().unwrap_or_default().into_iter().map(|section|{
             (section.section_code.clone(), ScheduleSelection {
                 course: CourseBasic { 
                     course_code: course.course_code.clone(), 
@@ -238,7 +243,7 @@ pub fn make_course_cache(courses_raw: &Vec<Course>) -> Coursedata {
                     description: course.description.clone() 
                 },
                 section: CourseSection { 
-                    course_code: course.course_code.clone(), 
+                    course_code: section.course_code, 
                     section_code: section.section_code, 
                     instructors: section.instructors, 
                     meetings: section.meetings, 
@@ -249,7 +254,7 @@ pub fn make_course_cache(courses_raw: &Vec<Course>) -> Coursedata {
                 },
                 hover: false,
                 differences: SelectionDifferences::all_false(),
-                color_number: i as i32 //changes the color for each section
+                color_number: -1
             })
         }).collect())
     ).collect();

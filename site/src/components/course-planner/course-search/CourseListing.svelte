@@ -11,7 +11,7 @@ Copyright (C) 2024 Andrew Cupps
     import CourseCondition from "./CourseCondition.svelte";
     import { AngleRightOutline } from "flowbite-svelte-icons";
     import type { Course, Section } from "@jupiterp/jupiterp";
-    import { AutoGen, AutoGenCourseStore } from "../../../stores/CoursePlannerStores";
+    import { AutoGen, CurrentScheduleStore } from "../../../stores/CoursePlannerStores";
 
     export let course: Course;
 
@@ -32,14 +32,14 @@ Copyright (C) 2024 Andrew Cupps
 
     function toggleCourseInAutogen() {
         if ($AutoGen) {
-            AutoGenCourseStore.update(current => {
-                if (current.some(c => c.courseCode === course.courseCode)) {
-                    //remove
-                    return current.filter(c => c.courseCode !== course.courseCode);
-                } else{
-                    //add
-                    return [...current, course]
+            CurrentScheduleStore.update((current) => {
+                let autoGen = current.autoGen ?? [];
+                if(autoGen.some(c => c.courseCode === course.courseCode)) {
+                    autoGen = autoGen.filter(c => c.courseCode !== course.courseCode);
+                } else {
+                    autoGen = [...autoGen, course]
                 }
+                return { ...current, autoGen: autoGen }
             });
         }
     }

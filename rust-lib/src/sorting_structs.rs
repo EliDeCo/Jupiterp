@@ -6,18 +6,15 @@ use std::collections::HashMap;
 pub type CourseMap = HashMap<String, SectionMap>;
 pub type SectionMap = HashMap<String, Section>;
 pub type Classtimes = HashMap<u32, Vec<StartEnd>>;
-pub type ClasstimesForHumans = Vec<String>;
 pub type BuildingMap = HashMap<String, BuildingData>;
 pub type Schedule = Vec<Section>;
 pub type ScheduleWithAlternates = Vec<(Section, Vec<Section>)>; // a schedule where each section has a list of alternates
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Section {
-    pub professor: ProfData,
     pub classtimes: Classtimes,
     pub course: String,
     pub section: String,
-    pub seats: [u32; 3], //Total, open, waitlisted
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -27,10 +24,8 @@ pub struct StartEnd {
     pub end: u32,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 pub struct BuildingData {
-    //pub name: String,
-    //pub id: String,
     pub long: f32,
     pub lat: f32,
 }
@@ -39,26 +34,6 @@ pub struct BuildingData {
 pub struct ProfData {
     pub name: String,
     pub rating: f32,
-}
-
-#[derive(Debug, Serialize, Clone, Default)]
-pub struct DisplaySection {
-    pub professor: ProfData,
-    pub classtimes: ClasstimesForHumans,
-    pub course: String,
-    pub section: String,
-    pub seats: [u32; 3], //Total, open, waitlisted
-    pub alternates: String,
-}
-
-//this is the type that the professor rating API returns
-#[derive(Debug, Deserialize, Default, PartialEq)]
-pub struct ProfRatingInput {
-    //courses: Vec<String>,
-    pub average_rating: f32,
-    //type: String,
-    //name: String,
-    //slug: String,
 }
 
 impl PartialEq for Section {

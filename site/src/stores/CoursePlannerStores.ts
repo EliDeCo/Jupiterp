@@ -16,7 +16,8 @@ export const HoveredSectionStore: Writable<ScheduleSelection | null> =
 /** Track selected sections in current schedule */
 export const CurrentScheduleStore: Writable<StoredSchedule> = writable({
     scheduleName: "Schedule 1",
-    selections: []
+    selections: [],
+    autoGen: [],
 });
 
 /** Track stored schedules that are not the active current schedule */
@@ -43,6 +44,3 @@ export const CourseSearchFilterStore: Writable<FilterParams> = writable({
 
 /** Tracks whether auto schedule generation is enabled */
 export const AutoGen: Writable<boolean> = writable(false);
-
-/** Tracks which courses are selected for autogeneration */
-export const AutoGenCourseStore: Writable<Course[]> = writable([]);

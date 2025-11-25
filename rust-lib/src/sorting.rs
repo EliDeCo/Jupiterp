@@ -1,4 +1,4 @@
-use crate::sorting_structs::*;
+use crate::{log_str, sorting_structs::*};
 use haversine_rs::{distance, point::Point, units::Unit};
 use std::collections::HashMap;
 
@@ -68,11 +68,11 @@ pub fn is_conflict(
                     if first.end > second.start {
                         return true;
                     } else {
-                        //skip if one of the courses is asyncronous
-                        if first.building == "OnlineSync" {
+                        //skip if one of the courses is asyncronous or unknown location
+                        if first.building == "OnlineSync" || first.building == "TBA" {
                             continue 'loop1;
                         } 
-                        if second.building == "OnlineSync" {
+                        if second.building == "OnlineSync" || second.building == "TBA" {
                             continue 'loop2;
                         }
 
@@ -80,19 +80,34 @@ pub fn is_conflict(
 
                         let time_between: u32 = time_between(first.end, second.start) * 60; //time between classes in seconds
 
-                        //println!("{}", &first.building);
+
                         let pos1: Point = Point::new(
-                            buildings[&first.building].lat as f64,
-                            buildings[&first.building].long as f64,
+                            buildings.get(&first.building).unwrap_or_else(|| {
+                                log_str(&format!("Building: \"{}\" not in database", first.building));
+                                &BuildingData { long: 0.0, lat: 0.0 }
+                            }).lat as f64,
+                            buildings.get(&first.building).unwrap_or(
+                                &BuildingData { long: 0.0, lat: 0.0 }
+                            ).lat as f64,
                         );
-                        //println!("{}", &second.building);
+
                         let pos2: Point = Point::new(
-                            buildings[&second.building].lat as f64,
-                            buildings[&first.building].long as f64,
+                            buildings.get(&first.building).unwrap_or(
+                                &BuildingData { long: 0.0, lat: 0.0 }
+                            ).lat as f64,
+                            buildings.get(&second.building).unwrap_or(
+                                &BuildingData { long: 0.0, lat: 0.0 }
+                            ).lat as f64,
                         );
+
                         let pos3: Point = Point::new(
-                            buildings[&second.building].lat as f64,
-                            buildings[&second.building].long as f64,
+                            buildings.get(&second.building).unwrap_or_else(|| {
+                               log_str(&format!("Building: \"{}\" not in database", second.building));
+                                &BuildingData { long: 0.0, lat: 0.0 }
+                            }).lat as f64,
+                            buildings.get(&second.building).unwrap_or(
+                                &BuildingData { long: 0.0, lat: 0.0 }
+                            ).lat as f64,
                         );
 
                         //computes the maximum distance: we cannot take a straghit line, and must go straight East or West, then straight north or south
@@ -125,58 +140,8 @@ pub fn is_conflict(
     false
 }
 
-#[allow(dead_code)] //Rating may be done here in the future
-///gives a rating of the inputted schedule for ordering
-pub fn rating(schedule: &ScheduleWithAlternates, all_alternates: &Vec<String>) -> f32 {
-    //Sum of all professor ratings
-    let prof_rating: f32 = schedule.iter().map(|(s, _)| s.professor.rating).sum();
 
-    //list of the average ratings for each alternate
-    let alt_ratings: Vec<f32> = schedule
-        .iter()
-        .map(|(_, a)| {
-            if a.is_empty() {
-                0.0
-            } else {
-                let sum: f32 = a.iter().map(|s| s.professor.rating).sum();
-                sum / a.len() as f32
-            }
-        })
-        .collect();
-
-    //average alternate rating
-    let av_alt_rating: f32 = alt_ratings.iter().sum::<f32>() / alt_ratings.len() as f32;
-
-    //rewards a schedule for giving freedom in which alternate courses are availible and when they can be taken
-    let mut alternate_diversity_rating: f32 = 0.;
-    for (_, alts) in schedule {
-        //for each course in the schedule
-        let course_alts: Vec<String> = alts.iter().map(|s| s.course.clone()).collect();
-        let mut counts: HashMap<String, usize> = HashMap::new(); //Amount of times each alternate course shows up
-        for alt in course_alts {
-            *counts.entry(alt).or_insert(0) += 1;
-        }
-        //get reward based on how many alternate courses (not sections) are availible for this course
-        alternate_diversity_rating += counts.len() as f32;
-        //get a reward based on the median number of sections per alternate course (rewards diverse options without overvaluing outliers)
-        for given_alternate in all_alternates.clone() {
-            //insert  zeroes for sections not included
-            counts.entry(given_alternate).or_insert(0);
-        }
-        let section_nums: Vec<f32> = counts.values().copied().map(|v| v as f32).collect();
-        alternate_diversity_rating += median(&section_nums);
-    }
-    //temporarily display all three ratings for debugging
-    /* 
-    println!(
-        "Prof Rating: {}, Av Alt Rating: {}, Alt Diversity Rating: {}",
-        prof_rating, av_alt_rating, alternate_diversity_rating
-    );
-    */
-    let _ =  prof_rating + av_alt_rating + alternate_diversity_rating;
-    return prof_rating;
-}
-
+#[allow(dead_code)] 
 ///compute median of a collection of floats
 fn median(numbers: &Vec<f32>) -> f32 {
     let mut numbers = numbers.clone();
@@ -220,11 +185,11 @@ pub fn get_potential_schedules(
     for (_, sections) in desired_courses.iter().skip(1) {
         let mut new_potential_schedules: Vec<Schedule> = Vec::new();
         for (_, new_section) in sections {
-            'schedule_loop: for schedule in potential_schedules.clone() {
-                for section in schedule.clone() {
+            'schedule_loop: for schedule in &potential_schedules {
+                for section in schedule {
                     if is_conflict(
-                        &section,
-                        &new_section,
+                        section,
+                        new_section,
                         &buildings,
                         WALK_SPEED,
                         EARLIST,
@@ -248,7 +213,9 @@ pub fn get_potential_schedules(
     potential_schedules
 }
 
-#[allow(dead_code)] //functionality for generating alternates may be added in the future
+//disregard
+//keeping this here in case this funcionality is implimented in the future
+#[allow(dead_code)] 
 ///Computes possible alternates for all the given potential schedules
 pub fn schedules_with_alternatives(
     potential_schedules: Vec<Schedule>,
@@ -260,19 +227,17 @@ pub fn schedules_with_alternatives(
         //generate the schedule with all possible alternates
         let mut single_with_alts: Vec<(Section, Vec<Section>)> = schedule
             .iter()
-            .map(|s| {
-                (
-                    s.clone(),
-                    s.find_alt(
-                        schedule.clone(),
-                        buildings,
-                        WALK_SPEED,
-                        EARLIST,
-                        LATEST,
-                        alternates,
-                    ),
-                )
-            })
+            .map(|s| {(
+                s.clone(),
+                s.find_alt(
+                    schedule.clone(),
+                    buildings,
+                    WALK_SPEED,
+                    EARLIST,
+                    LATEST,
+                    alternates,
+                ),
+            )})
             .collect();
 
         //sort alphabetically by course
@@ -280,14 +245,5 @@ pub fn schedules_with_alternatives(
 
         schedules_with_alternates.push(single_with_alts);
     }
-
-    //sort by rating, highest to lowest
-    let alternates: Vec<String> = alternates.keys().cloned().collect();
-    schedules_with_alternates.sort_by(|a, b| {
-        rating(b, &alternates)
-            .partial_cmp(&rating(a, &alternates))
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-
     schedules_with_alternates
 }

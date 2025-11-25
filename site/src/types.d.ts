@@ -7,7 +7,7 @@
  * @fileoverview Types and interfaces used in Jupiterp
  */
 
-import type { ClassMeeting, CourseBasic, GenEd, Section } from "@jupiterp/jupiterp"
+import type { ClassMeeting, Course, CourseBasic, GenEd, Section } from "@jupiterp/jupiterp"
 
 /**
  * A section of a class selected by the user, along with metadata used for
@@ -58,7 +58,8 @@ interface SelectionDifferences {
  */
 interface StoredSchedule {
     scheduleName: string,
-    selections: ScheduleSelection[]
+    selections: ScheduleSelection[],
+    autoGen: Course[]
 }
 
 /**

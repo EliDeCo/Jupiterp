@@ -16,7 +16,6 @@ Copyright (C) 2025 Andrew Cupps
         SearchResultsStore,
         DeptSuggestionsStore,
         AutoGen,
-        AutoGenCourseStore,
         ProfsLookupStore
     } from "../../../stores/CoursePlannerStores";
     import ScheduleSelector from "./ScheduleSelector.svelte";
@@ -28,6 +27,7 @@ Copyright (C) 2025 Andrew Cupps
         get_schedules,
     } from "../../../../../rust-lib/pkg";
     import { onMount } from "svelte";
+    import { getProfRatingSection } from "../../../lib/course-planner/Professors";
 
 
     const FILTER_SCROLL_COLLAPSE_THRESHOLD = 100;
@@ -59,6 +59,7 @@ Copyright (C) 2025 Andrew Cupps
     } else {
         isPendingResults = false;
     }
+
 
     let genEdMenuOpen = false;
 
@@ -140,8 +141,12 @@ Copyright (C) 2025 Andrew Cupps
     }
 
     function removeFromAutoGen(course: Course) {
-        AutoGenCourseStore.update(current => {
-            return current.filter(c => c.courseCode !== course.courseCode);
+        //AutoGenCourseStore.update(current => {
+        //    return current.filter(c => c.courseCode !== course.courseCode);
+        //});
+        CurrentScheduleStore.update(current => {
+            current.autoGen = current.autoGen.filter(c => c.courseCode !== course.courseCode);
+            return current;
         });
     }
 
@@ -158,36 +163,30 @@ Copyright (C) 2025 Andrew Cupps
     })
 
     let schedules: ScheduleSelection[][] = [];
-    let courses: Course[] = [];
-    AutoGenCourseStore.subscribe((selected) => courses = selected);
+    let autogen_courses: Course[] = [];
+    //AutoGenCourseStore.subscribe((selected) => courses = selected);
+    CurrentScheduleStore.subscribe((selected) => autogen_courses = selected.autoGen);
+
 
     let profs: Record<string, Instructor>;
     ProfsLookupStore.subscribe((lookup) => { profs = lookup });
 
-    function getProfRating(val: ScheduleSelection): number {
-        const instructor = val.section.instructors[0];
-        if (instructor in profs && profs[instructor].average_rating != null) {
-            return parseFloat(profs[instructor].average_rating);
-        } else {
-            return 0;
-        }
-    }
 
     function generateSchedule() {
         searchInput = '';
         searchResults = [];
+        schedules = [];
 
         //get list of possible schedules
-        schedules = get_schedules(courses, buildings);
-
+        schedules = get_schedules(autogen_courses, buildings);
         
         if (schedules.length === 0) {
             console.log("No possible schedules with the given parameters");
         } else {
             //for now sort by professor ratings (using the first instructor)
             schedules.sort((a,b) => {
-                const bSeats = b.reduce((total, s) => total + getProfRating(s), 0);
-                const aSeats = a.reduce((total, s) => total + getProfRating(s), 0);
+                const bSeats = b.reduce((total, s) => total + getProfRatingSection(profs, s), 0);
+                const aSeats = a.reduce((total, s) => total + getProfRatingSection(profs, s), 0);
                 return bSeats - aSeats;
             });
         }
@@ -270,7 +269,7 @@ Copyright (C) 2025 Andrew Cupps
             </div>
             <div class='flex flex-wrap gap-x-1 gap-y-0'>
                 <!-- Selected Courses for Auto Generation -->
-                {#each $AutoGenCourseStore as course}
+                {#each autogen_courses ?? [] as course}
                     <button on:click={() => removeFromAutoGen(course)}
                             class='px-2 my-2 bg-bgSecondaryLight dark:bg-bgSecondaryDark 
                             rounded-lg border-2 border-outlineLight dark:border-outlineDark
@@ -279,7 +278,7 @@ Copyright (C) 2025 Andrew Cupps
                     </button>
                 {/each}
             </div>
-            {#if !$AutoGenCourseStore.length}
+            {#if !(autogen_courses ?? []).length}
                 <div class="text-sm italic dark:text-[#8892a8]">No Selected Courses</div>
             {/if}
         </div>

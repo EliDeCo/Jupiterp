@@ -36,26 +36,26 @@ macro_rules! console_log {
 /// Takes an input of Course[] and json, and returns ScheduleSelection[][] (a list of schedules)
 pub fn get_schedules(courses: JsValue, building_data: JsValue) -> JsValue {
     // get courses
-    let from_serde: Vec<Course> = match serde_wasm_bindgen::from_value(courses.clone()) {
+    let from_serde: Vec<Course> = match serde_wasm_bindgen::from_value(courses) {
         Ok(val) => val,
         Err(err) => {
             console_log!("Course data deserialize error: {}", err);
-            log_js(&courses);
+            //log_js(&courses);
             Vec::new()
         }
     };
-    //format all sections into ScheduleSelection and save for later
+    //format all sections into ScheduleSelection format and save for later
     let course_cache: Coursedata = make_course_cache(&from_serde);
 
     //format all sections for schedule making
     let course_map: CourseMap = from_serde.into_iter().map(|f|f.to_coursemap()).collect();
 
     //get building location data
-    let buildings: HashMap<String, BuildingData> = match from_value(building_data.clone()) {
+    let buildings: HashMap<String, BuildingData> = match from_value(building_data) {
         Ok(val) => val,
         Err(err) => {
             console_log!("Building data deserialize error: {}", err);
-            log_js(&building_data);
+            //log_js(&building_data);
             HashMap::new()
         }
     };
@@ -66,12 +66,13 @@ pub fn get_schedules(courses: JsValue, building_data: JsValue) -> JsValue {
     let potential_schedules: Vec<Schedule> = sorting::get_potential_schedules(course_map, &buildings);
 
     //convert to ScheduleSelection[][] using the saved cache
-    let output: Vec<Vec<ScheduleSelection>> = potential_schedules.iter().map(|schedule|
-        schedule.iter().map(|section| course_cache
+    let output: Vec<Vec<ScheduleSelection>> = potential_schedules.into_iter().map(|schedule|
+        schedule.into_iter().enumerate().map(|(i,section)| course_cache
             .get(&section.course)
             .and_then(|c|c.get(&section.section))
-            .cloned()
             .unwrap_throw()
+            .clone()
+            .set_color(i as i32)
         ).collect()
     ).collect();
 
