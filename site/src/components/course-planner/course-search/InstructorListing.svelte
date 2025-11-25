@@ -15,7 +15,7 @@ Copyright (C) 2024 Andrew Cupps
     ProfsLookupStore.subscribe((lookup) => { profs = lookup });
 
     // Convert rating to a percentage for CSS
-    function convertRating(rating: string | null): number {
+    export function convertRating(rating: string | null): number {
         if (rating == null) {
             throw Error(
                 'Rating was null in `convertRating`; this should never happen!'

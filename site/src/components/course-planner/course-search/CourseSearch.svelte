@@ -16,10 +16,11 @@ Copyright (C) 2025 Andrew Cupps
         SearchResultsStore,
         DeptSuggestionsStore,
         AutoGen,
-        AutoGenCourseStore
+        AutoGenCourseStore,
+        ProfsLookupStore
     } from "../../../stores/CoursePlannerStores";
     import ScheduleSelector from "./ScheduleSelector.svelte";
-    import type { Course } from "@jupiterp/jupiterp";
+    import type { Course, Instructor } from "@jupiterp/jupiterp";
     import type { ScheduleSelection } from "../../../types";
     import CourseFilters from "./CourseFilters.svelte";
     import init, { 
@@ -27,7 +28,6 @@ Copyright (C) 2025 Andrew Cupps
         get_schedules,
     } from "../../../../../rust-lib/pkg";
     import { onMount } from "svelte";
-
 
 
     const FILTER_SCROLL_COLLAPSE_THRESHOLD = 100;
@@ -61,8 +61,6 @@ Copyright (C) 2025 Andrew Cupps
     }
 
     let genEdMenuOpen = false;
-
-
 
 
     function selectDepartment(dept: string) {
@@ -163,11 +161,21 @@ Copyright (C) 2025 Andrew Cupps
     let courses: Course[] = [];
     AutoGenCourseStore.subscribe((selected) => courses = selected);
 
+    let profs: Record<string, Instructor>;
+    ProfsLookupStore.subscribe((lookup) => { profs = lookup });
+
+    function getProfRating(val: ScheduleSelection): number {
+        const instructor = val.section.instructors[0];
+        if (instructor in profs && profs[instructor].average_rating != null) {
+            return parseFloat(profs[instructor].average_rating);
+        } else {
+            return 0;
+        }
+    }
+
     function generateSchedule() {
         searchInput = '';
         searchResults = [];
-
-
 
         //get list of possible schedules
         schedules = get_schedules(courses, buildings);
@@ -175,6 +183,13 @@ Copyright (C) 2025 Andrew Cupps
         
         if (schedules.length === 0) {
             console.log("No possible schedules with the given parameters");
+        } else {
+            //for now sort by professor ratings (using the first instructor)
+            schedules.sort((a,b) => {
+                const bSeats = b.reduce((total, s) => total + getProfRating(s), 0);
+                const aSeats = a.reduce((total, s) => total + getProfRating(s), 0);
+                return bSeats - aSeats;
+            });
         }
     }
 </script>
