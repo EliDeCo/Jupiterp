@@ -32,8 +32,8 @@ macro_rules! console_log {
 }
 
 #[wasm_bindgen]
-/// Takes an input of Course[] and json, and returns ScheduleSelection[][] (a list of schedules)
-pub fn get_schedules(courses: JsValue, building_data: JsValue) -> JsValue {
+/// Takes an input of Course[], and returns ScheduleSelection[][] (a list of schedules)
+pub fn get_schedules(courses: JsValue) -> JsValue {
     let course_list: Vec<Course> = match serde_wasm_bindgen::from_value(courses) {
         Ok(val) => val,
         Err(err) => {
@@ -46,7 +46,7 @@ pub fn get_schedules(courses: JsValue, building_data: JsValue) -> JsValue {
     //format all sections into ScheduleSelection format and save for later
     let course_cache: Coursedata = make_course_cache(&course_list);
 
-    let potential_schedules: Vec<Vec<Section>> = get_potential_schedules(course_list, building_data);
+    let potential_schedules: Vec<Vec<Section>> = get_potential_schedules(course_list);
 
     //convert to ScheduleSelection[][] using the saved cache
     let output: Vec<Vec<ScheduleSelection>> = potential_schedules.into_iter().map(|schedule|

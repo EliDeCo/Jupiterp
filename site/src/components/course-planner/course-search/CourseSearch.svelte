@@ -178,7 +178,7 @@ Copyright (C) 2025 Andrew Cupps
         schedules = [];
 
         //get list of possible schedules
-        schedules = get_schedules(autogen_courses, buildings);
+        schedules = get_schedules(autogen_courses);
         
         if (schedules.length === 0) {
             console.log("No possible schedules with the given parameters");

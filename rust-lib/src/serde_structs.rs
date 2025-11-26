@@ -24,28 +24,11 @@ pub struct Course {
 
 
 impl Course {
-    pub fn to_coursemap(self) -> (String, SectionMap) {
-        let mut section_map: SectionMap = HashMap::new();
-        if let Some(sections) = self.sections {
-            for sec in sections {
-                let classtimes: Classtimes = classmeet_convert(sec.meetings);
-                let course: String = sec.course_code;
-                let section: String = sec.section_code.clone();
-
-                section_map.insert(sec.section_code, Section { classtimes, course, section });
-            }
-            return (self.course_code, section_map);
-        } else {
-            log_str(&format!("No courses sections for {}", self.course_code));
-            return (self.course_code, HashMap::new());
-        }
-    }
-
-    pub fn to_sections(self) -> Vec<Section> {
+    pub fn to_sectionbits(self) -> Vec<Section> {
         if let Some(sections) = self.sections {
             return sections.into_iter().map(|sec|{
                 Section { 
-                    classtimes: classmeet_convert(sec.meetings), 
+                    classtimes: classmeet_to_bits(sec.meetings), 
                     course: sec.course_code, 
                     section: sec.section_code 
                 }
@@ -97,6 +80,7 @@ impl Default for ClassMeetingFull {
 #[derive(Deserialize)]
 pub struct ClassMeeting {
     classtime: Classtime,
+    #[allow(dead_code)]
     location: Location,
 }
 
@@ -112,71 +96,6 @@ pub struct Classtime {
 pub struct Location {
     pub building: String,
     //room: Option<String>,
-}
-
-fn classmeet_convert(input: Vec<ClassMeetingFull>) -> Classtimes {
-    let mut output: Classtimes = HashMap::new();
-    //iterate through every meeting
-    for meeting_full in input {
-        let meeting: ClassMeeting = match meeting_full {
-            ClassMeetingFull::Detailed { classtime, location } => {
-                ClassMeeting { classtime, location }
-            }
-            ClassMeetingFull::Text(t) => {
-                //store abnormal class meetings in day 0, reusing the building field of StartEnd to store which type it is
-                let abnormal: StartEnd = StartEnd { 
-                    building: t, 
-                    start: 0, 
-                    end: 0 
-                };
-                if let Some(day_meetings) = output.get_mut(&0) {
-                    day_meetings.push(abnormal);
-                } else {
-                    output.insert(0, vec![abnormal]);
-                }
-                continue;
-
-            }
-        };
-
-
-        let building: String = meeting.location.building;
-
-        //turn M into 1, Tu into 2, etc.
-        let days_key: Vec<&str> = vec!["M","Tu","W","Th","F"];
-        let mut days: Vec<u32> = Vec::new();
-        for (i, k) in days_key.iter().enumerate() { 
-            if meeting.classtime.days.contains(k) {
-                days.push(i as u32 + 1);
-            }
-        }
-
-        //add format start and end times for each day
-        let start_end: StartEnd = StartEnd { 
-            building, 
-            start: time_fmt(meeting.classtime.start), 
-            end: time_fmt(meeting.classtime.end)
-        };
-        
-        //add this meeting to the output, adding the day if it doesn't already exist
-        for day in days {
-            if let Some(day_meetings) = output.get_mut(&day) {
-                day_meetings.push(start_end.clone());
-            } else {
-                output.insert(day, vec![start_end.clone()]);
-            }
-        }
-    }
-
-
-    return output;
-}
-
-///converts from Jupiterp's way of storing time to the rust scheduling program's way
-fn time_fmt(time: f32) -> u32 {
-    let hours = time.floor() as u32;
-    let minutes = ((time - hours as f32) * 60.0).round() as u32;
-    hours * 100 + minutes
 }
 
 #[derive(Serialize, Clone, Default)]
@@ -273,4 +192,45 @@ pub fn make_course_cache(courses_raw: &Vec<Course>) -> Coursedata {
             })
         }).collect())
     ).collect();
+}
+
+///converts classmeets to bitmaps representing classes
+fn classmeet_to_bits(input: Vec<ClassMeetingFull>) -> [u64; 5] {
+    let mut output = [0u64; 5];
+    //iterate through every meeting
+    for meeting_full in input {
+        let meeting: ClassMeeting = match meeting_full {
+            ClassMeetingFull::Detailed { classtime, location } => {
+                ClassMeeting { classtime, location }
+            }
+            ClassMeetingFull::Text(_) => { continue; }
+        };
+
+        //turn M into 1, Tu into 2, etc.
+        let days_key: Vec<&str> = vec!["M","Tu","W","Th","F"];
+        let mut days: Vec<usize> = Vec::new();
+        for (i, k) in days_key.iter().enumerate() { 
+            if meeting.classtime.days.contains(k) {
+                days.push(i);
+            }
+        }
+
+        let start_slot = get_slot(meeting.classtime.start, 8, 15);
+        let end_slot = get_slot(meeting.classtime.end, 8, 15);
+
+        for i in days {
+            for slot in start_slot..end_slot {
+                output[i] |= 1 << slot;
+            }
+        }
+
+    }
+    return output;
+}
+
+
+fn get_slot(time: f32, earliest: u32, interval: u32) -> u8 {
+    let hours = time.floor() as u32;
+    let minutes = ((time - hours as f32) * 60.0).round() as u32;  
+    return ((hours * 60 + minutes - (earliest * 60)) / interval) as u8;
 }
