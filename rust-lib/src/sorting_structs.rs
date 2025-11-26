@@ -1,4 +1,4 @@
-use crate::{sorting::is_conflict};
+use crate::{sorting::is_conflict_legacy};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -65,7 +65,7 @@ impl Section {
                 //for each section in that alternate course
                 for current_section in &schedule {
                     //see if the alternate section conflicts with any other section in the current schedule
-                    if is_conflict(
+                    if is_conflict_legacy(
                         current_section,
                         alt_section,
                         buildings,

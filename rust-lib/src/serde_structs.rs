@@ -40,6 +40,21 @@ impl Course {
             return (self.course_code, HashMap::new());
         }
     }
+
+    pub fn to_sections(self) -> Vec<Section> {
+        if let Some(sections) = self.sections {
+            return sections.into_iter().map(|sec|{
+                Section { 
+                    classtimes: classmeet_convert(sec.meetings), 
+                    course: sec.course_code, 
+                    section: sec.section_code 
+                }
+            }).collect();
+        } else {
+            log_str(&format!("No courses sections for {}", self.course_code));
+            return Vec::new();
+        }
+    }
 }
 
 

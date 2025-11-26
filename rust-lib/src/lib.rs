@@ -6,9 +6,8 @@ use wasm_bindgen::prelude::*;
 use std::panic;
 use serde_structs::Course;
 use sorting_structs::*;
-use std::collections::HashMap;
-use crate::serde_structs::{Coursedata, ScheduleSelection, make_course_cache};
-use serde_wasm_bindgen::{from_value, Serializer};
+use crate::{serde_structs::{Coursedata, ScheduleSelection, make_course_cache}, sorting::get_potential_schedules};
+use serde_wasm_bindgen::Serializer;
 
 //TODO: impliment GenEd
 
@@ -35,8 +34,7 @@ macro_rules! console_log {
 #[wasm_bindgen]
 /// Takes an input of Course[] and json, and returns ScheduleSelection[][] (a list of schedules)
 pub fn get_schedules(courses: JsValue, building_data: JsValue) -> JsValue {
-    // get courses
-    let from_serde: Vec<Course> = match serde_wasm_bindgen::from_value(courses) {
+    let course_list: Vec<Course> = match serde_wasm_bindgen::from_value(courses) {
         Ok(val) => val,
         Err(err) => {
             console_log!("Course data deserialize error: {}", err);
@@ -44,26 +42,11 @@ pub fn get_schedules(courses: JsValue, building_data: JsValue) -> JsValue {
             Vec::new()
         }
     };
+
     //format all sections into ScheduleSelection format and save for later
-    let course_cache: Coursedata = make_course_cache(&from_serde);
+    let course_cache: Coursedata = make_course_cache(&course_list);
 
-    //format all sections for schedule making
-    let course_map: CourseMap = from_serde.into_iter().map(|f|f.to_coursemap()).collect();
-
-    //get building location data
-    let buildings: HashMap<String, BuildingData> = match from_value(building_data) {
-        Ok(val) => val,
-        Err(err) => {
-            console_log!("Building data deserialize error: {}", err);
-            //log_js(&building_data);
-            HashMap::new()
-        }
-    };
-
-    
-
-    //generate all potential schedules
-    let potential_schedules: Vec<Schedule> = sorting::get_potential_schedules(course_map, &buildings);
+    let potential_schedules: Vec<Vec<Section>> = get_potential_schedules(course_list, building_data);
 
     //convert to ScheduleSelection[][] using the saved cache
     let output: Vec<Vec<ScheduleSelection>> = potential_schedules.into_iter().map(|schedule|
@@ -76,17 +59,8 @@ pub fn get_schedules(courses: JsValue, building_data: JsValue) -> JsValue {
         ).collect()
     ).collect();
 
-
-    
-    //let js_val = to_value(&output).unwrap_or_default();
-
     //create a custom serializer to add None -> Null Functionality
     let js_val: JsValue = output.serialize(&Serializer::json_compatible()).unwrap_throw();
 
-    //log first schedule for tessting
-    //let log_val: JsValue = output[0].serialize(&Serializer::json_compatible()).unwrap_throw();
-    //log_js(&log_val);
-
-    //log_js(&js_val);
     return js_val;
 }

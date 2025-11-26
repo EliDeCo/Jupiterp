@@ -1,6 +1,8 @@
-use crate::{log_str, sorting_structs::*};
+use crate::{log_str, serde_structs::{ClassMeetingFull, Course, Coursedata}, sorting_structs::*};
 use haversine_rs::{distance, point::Point, units::Unit};
-use std::collections::HashMap;
+use std::{collections::{HashMap, HashSet}, fmt::format, result, u32};
+use serde_wasm_bindgen::from_value;
+use wasm_bindgen::prelude::*;
 
 //walk speed in meters per second
 const WALK_SPEED: f32 = 1.42;
@@ -8,6 +10,9 @@ const WALK_SPEED: f32 = 1.42;
 //earlist and latest time to go to class
 const EARLIST: u32 = 100;
 const LATEST: u32 = 2300;
+//constant to convert from degrees to meters
+const LAT_TO_M: f32 = 111_111.;
+const LON_TO_M: f32 = 86_610.;
 
 
 /// Convert HHMM -> total minutes since midnight and compare
@@ -21,8 +26,8 @@ pub fn time_between(first: u32, second: u32) -> u32 {
     return to_minutes(second) - to_minutes(first);
 }
 
-/// takes two sections and determines if they have overlapping time slots, unwalkable, or too early or late
-pub fn is_conflict(
+/// takes two sections and determines if they have overlapping time slots, unwalkable, or too early or late (outdated)
+pub fn is_conflict_legacy(
     section1: &Section,
     section2: &Section,
     buildings: &HashMap<String, BuildingData>,
@@ -88,7 +93,7 @@ pub fn is_conflict(
                             }).lat as f64,
                             buildings.get(&first.building).unwrap_or(
                                 &BuildingData { long: 0.0, lat: 0.0 }
-                            ).lat as f64,
+                            ).long as f64,
                         );
 
                         let pos2: Point = Point::new(
@@ -97,7 +102,7 @@ pub fn is_conflict(
                             ).lat as f64,
                             buildings.get(&second.building).unwrap_or(
                                 &BuildingData { long: 0.0, lat: 0.0 }
-                            ).lat as f64,
+                            ).long as f64,
                         );
 
                         let pos3: Point = Point::new(
@@ -107,7 +112,7 @@ pub fn is_conflict(
                             }).lat as f64,
                             buildings.get(&second.building).unwrap_or(
                                 &BuildingData { long: 0.0, lat: 0.0 }
-                            ).lat as f64,
+                            ).long as f64,
                         );
 
                         //computes the maximum distance: we cannot take a straghit line, and must go straight East or West, then straight north or south
@@ -140,28 +145,8 @@ pub fn is_conflict(
     false
 }
 
-
-#[allow(dead_code)] 
-///compute median of a collection of floats
-fn median(numbers: &Vec<f32>) -> f32 {
-    let mut numbers = numbers.clone();
-    numbers.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    let len = numbers.len();
-
-    if len == 0 {
-        return f32::NAN; // or panic!("empty list") if that fits your case
-    }
-
-    if len % 2 == 1 {
-        numbers[len / 2]
-    } else {
-        let mid = len / 2;
-        (numbers[mid - 1] + numbers[mid]) / 2.0
-    }
-}
-
-///Generates all potential schedules from the desired courses
-pub fn get_potential_schedules(
+///Generates all potential schedules from the desired courses (old)
+pub fn get_potential_schedules_legacy(
     desired_courses: CourseMap,
     buildings: &BuildingMap,
 ) -> Vec<Schedule> {
@@ -187,7 +172,7 @@ pub fn get_potential_schedules(
         for (_, new_section) in sections {
             'schedule_loop: for schedule in &potential_schedules {
                 for section in schedule {
-                    if is_conflict(
+                    if is_conflict_legacy(
                         section,
                         new_section,
                         &buildings,
@@ -247,3 +232,123 @@ pub fn schedules_with_alternatives(
     }
     schedules_with_alternates
 }
+
+#[allow(dead_code)] 
+///compute median of a collection of floats
+fn median(numbers: &Vec<f32>) -> f32 {
+    let mut numbers = numbers.clone();
+    numbers.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let len = numbers.len();
+
+    if len == 0 {
+        return f32::NAN; // or panic!("empty list") if that fits your case
+    }
+
+    if len % 2 == 1 {
+        numbers[len / 2]
+    } else {
+        let mid = len / 2;
+        (numbers[mid - 1] + numbers[mid]) / 2.0
+    }
+}
+
+//TODO: FIX EVERYTHING AND USE REFERENCES FOR THE LOVE OF GOD
+
+pub fn get_potential_schedules(
+    desired_courses: Vec<Course>,
+    buildings: JsValue,
+) -> Vec<Schedule> {
+
+    let mut desired_sections: Vec<Vec<Section>> = desired_courses.into_iter().map(|c|c.to_sections()).collect();
+
+    //remove sections that break earlist/latest filter,
+    for course in desired_sections.iter_mut() {
+        course.retain(|section|{
+            let mut earliest: u32 = u32::MAX;
+            let mut latest: u32 = 0;
+
+            for start_end in section.classtimes.values().flatten() {
+                if start_end.start < earliest { earliest = start_end.start }
+                if start_end.end > latest { latest = start_end.end }
+            }
+
+            if earliest == u32::MAX {
+                return false;
+            }
+
+            return earliest  >= EARLIST && latest <= LATEST;
+        });
+    }
+
+    desired_sections.sort_by_key(|sections|sections.len());
+    
+
+    let mut conflict_memo: HashMap<String,bool> = HashMap::new();
+    let mut results: Vec<Vec<Section>> = Vec::new();
+    let mut current: Vec<Section> = Vec::new();
+
+
+    backtrack(0, &mut current, &desired_sections, &mut results, &mut conflict_memo);
+
+    return results;
+}
+
+///backtracking function for get_potential_schedules
+fn backtrack(
+    course_idx: usize,
+    current_schedule: &mut Vec<Section>,
+    courses: &Vec<Vec<Section>>,
+    results: &mut Vec<Vec<Section>>,
+    conflict_memo: &mut HashMap<String,bool>,
+) {
+
+    if course_idx == courses.len() {
+        results.push(current_schedule.clone());
+        return;
+    }
+
+    for new_section in &courses[course_idx] {
+        let mut has_conflict: bool = false;
+        for existing_section in current_schedule.iter() {
+            let key = pair_to_id(new_section, existing_section);
+            let conflict = match conflict_memo.get(&key) {
+                Some(&b) => b,
+                None => {
+                    let b = is_conflict(new_section, existing_section);
+                    conflict_memo.insert(key, b);
+                    b
+                }
+            };
+
+            if conflict {
+                has_conflict = true;
+                break;
+            }
+        }
+
+        if !has_conflict {
+            current_schedule.push(new_section.clone());
+            backtrack(course_idx + 1, current_schedule, courses, results, conflict_memo);
+            current_schedule.pop();
+        }
+    }
+}
+
+///Checks if the meeting times of two given sections overlap
+pub fn is_conflict(
+    section1: &Section,
+    section2: &Section,
+) -> bool {
+
+    return true;
+}
+
+///turns a pair of sections into a unique id with consistent order
+pub fn pair_to_id(section1: &Section, section2: &Section) -> String {
+    let mut both: [&Section; 2] = [section1,section2];
+    both.sort_by_key(|s|&s.course);
+    format!("{}{}{}{}", both[0].course, both[0].section, both[1].course, both[1].section)
+}
+
+
+
