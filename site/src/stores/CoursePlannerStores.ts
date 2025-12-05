@@ -17,7 +17,7 @@ export const HoveredSectionStore: Writable<ScheduleSelection | null> =
 export const CurrentScheduleStore: Writable<StoredSchedule> = writable({
     scheduleName: "Schedule 1",
     selections: [],
-    autoGen: [],
+    autoGen: new Map,
 });
 
 /** Track stored schedules that are not the active current schedule */

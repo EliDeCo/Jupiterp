@@ -74,7 +74,8 @@ export function resolveStoredSchedules(storedRaw: string): StoredSchedule[] {
         return (parsed as LegacyStoredSchedule[]).map((legacy) => {
             return {
                 scheduleName: legacy.scheduleName,
-                selections: modernizeSelections(legacy.selections)
+                selections: modernizeSelections(legacy.selections),
+                autoGen: new Map(),
             };
         });
     }
@@ -82,7 +83,8 @@ export function resolveStoredSchedules(storedRaw: string): StoredSchedule[] {
     return (parsed as StoredSchedule[]).map((stored) => {
         return {
             scheduleName: stored.scheduleName,
-            selections: stored.selections
+            selections: stored.selections,
+            autoGen:  stored.autoGen,
         };
     });
 }
@@ -277,20 +279,23 @@ export async function ensureUpToDateAndSetStores(
         });
         updatedNonSelectedSchedules.push({
             scheduleName: stored.scheduleName,
-            selections: updatedSelections
+            selections: updatedSelections,
+            autoGen: stored.autoGen
         });
     });
 
     CurrentScheduleStore.set({
         scheduleName: current.scheduleName,
-        selections: assignColorNumbers(updatedCurrentSelections)
+        selections: assignColorNumbers(updatedCurrentSelections),
+        autoGen: current.autoGen
     });
 
     NonselectedScheduleStore.set(
         updatedNonSelectedSchedules.map((stored) => {
             return {
                 scheduleName: stored.scheduleName,
-                selections: assignColorNumbers(stored.selections)
+                selections: assignColorNumbers(stored.selections),
+                autoGen: stored.autoGen
             };
         })
     );

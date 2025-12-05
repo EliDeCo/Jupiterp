@@ -55,11 +55,13 @@ interface SelectionDifferences {
 
 /**
  * A selection stored in local storage, along with the name of the schedule
+ * Also includes settings for autogenerating courses
  */
 interface StoredSchedule {
     scheduleName: string,
     selections: ScheduleSelection[],
-    autoGen: Course[]
+    //          Course | dropdown | professor | selected
+    autoGen: Map<Course, [boolean, Map<string, boolean>]>
 }
 
 /**
@@ -249,5 +251,7 @@ export interface ServerSideFilterParams {
 export interface ClientSideFilterParams {
     minCredits?: number,
     maxCredits?: number,
+    earliest?: number,
+    latest?: number,
     onlyOpen?: boolean,
 }

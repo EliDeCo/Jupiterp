@@ -14,14 +14,17 @@ Copyright (C) 2024 Andrew Cupps
     import { CurrentScheduleStore, NonselectedScheduleStore } from '../../../stores/CoursePlannerStores';
     import { uniqueScheduleName } from '$lib/course-planner/ScheduleSelector';
     import type { ScheduleSelection, StoredSchedule } from '../../../types';
+    import type { Course } from "@jupiterp/jupiterp";
 
     let dropdownOpen = false;
 
     let currentScheduleName: string;
     let currentScheduleSelections: ScheduleSelection[];
+    let currentautoGen: Map<Course, [boolean, Map<string, boolean>]>;
     CurrentScheduleStore.subscribe((stored) => {
         currentScheduleName = stored.scheduleName,
         currentScheduleSelections = stored.selections
+        currentautoGen = stored.autoGen;
     });
 
     let nonselectedSchedules: StoredSchedule[];
@@ -39,17 +42,20 @@ Copyright (C) 2024 Andrew Cupps
 
             CurrentScheduleStore.set({
                 scheduleName: currentScheduleName,
-                selections: currentScheduleSelections
+                selections: currentScheduleSelections,
+                autoGen: currentautoGen
             });
 
             NonselectedScheduleStore.set(nonselectedSchedules);
         } else {
             currentScheduleName = 'My schedule';
             currentScheduleSelections = [];
+            currentautoGen = new Map();
 
             CurrentScheduleStore.set({
                 scheduleName: currentScheduleName,
-                selections: currentScheduleSelections
+                selections: currentScheduleSelections,
+                autoGen: currentautoGen
             });
         }
     }
@@ -59,7 +65,8 @@ Copyright (C) 2024 Andrew Cupps
 
         nonselectedSchedules = [{
             scheduleName: currentScheduleName,
-            selections: currentScheduleSelections
+            selections: currentScheduleSelections,
+            autoGen: currentautoGen
         }, ...nonselectedSchedules];
         currentScheduleName = uniqueScheduleName(
             currentScheduleName,
@@ -70,7 +77,8 @@ Copyright (C) 2024 Andrew Cupps
         NonselectedScheduleStore.set(nonselectedSchedules);
         CurrentScheduleStore.set({
             scheduleName: currentScheduleName,
-            selections: currentScheduleSelections
+            selections: currentScheduleSelections,
+            autoGen: currentautoGen
         });
     }
 </script>

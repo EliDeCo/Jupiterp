@@ -14,7 +14,7 @@ Copyright (C) 2024 Andrew Cupps
         CourseSearchFilterStore,
     } from "../../../stores/CoursePlannerStores";
     import SeatData from "./SeatData.svelte";
-    import type { Section, CourseBasic } from "@jupiterp/jupiterp";
+    import type { Section, CourseBasic, Course } from "@jupiterp/jupiterp";
     import type { ScheduleSelection } from "../../../types";
     import { noDifferences } from "$lib/course-planner/Schedule";
 
@@ -27,10 +27,15 @@ Copyright (C) 2024 Andrew Cupps
 
     let selectionsList: ScheduleSelection[];
     let scheduleName: string;
+    let AutogenValue: Map<Course, [boolean, Map<string, boolean>]>;
     CurrentScheduleStore.subscribe((stored) => {
         selectionsList = stored.selections;
         scheduleName = stored.scheduleName;
+        AutogenValue = stored.autoGen;
     });
+
+
+    
 
     let onlyShowingOpen = false;
     CourseSearchFilterStore.subscribe((store) => {
@@ -98,7 +103,8 @@ Copyright (C) 2024 Andrew Cupps
             newSelection.colorNumber = firstAvailableColor(selectionsList);
             CurrentScheduleStore.set({
                 scheduleName,
-                selections: [...selectionsList, newSelection]
+                selections: [...selectionsList, newSelection],
+                autoGen: AutogenValue
             });
             CourseInfoPairStore.update(value => {
                 return value === null ? null : {
@@ -116,7 +122,8 @@ Copyright (C) 2024 Andrew Cupps
                     selections: [
                         ...selectionsList.slice(0, index),
                         ...selectionsList.slice(index + 1)
-                    ]
+                    ],
+                    autoGen: AutogenValue
                 });
             }
             CourseInfoPairStore.update(value => {

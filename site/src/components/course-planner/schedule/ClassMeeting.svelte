@@ -24,7 +24,7 @@ Copyright (C) 2024 Andrew Cupps
         ScheduleSelection,
         SelectionDifferences
     } from '../../../types';
-
+    import type { Course } from "@jupiterp/jupiterp";
     export let meeting: ClassMeetingExtended;
     export let earliestClassStart: number = 0;
     export let latestClassEnd: number = 0;
@@ -35,9 +35,11 @@ Copyright (C) 2024 Andrew Cupps
 
     let selections: ScheduleSelection[];
     let scheduleName: string;
+    let autoGen: Map<Course, [boolean, Map<string, boolean>]>;
     CurrentScheduleStore.subscribe((stored) => {
         selections = stored.selections;
         scheduleName = stored.scheduleName;
+        autoGen = stored.autoGen;
     });
 
     const differences: SelectionDifferences = meeting.differences;
@@ -123,7 +125,8 @@ Copyright (C) 2024 Andrew Cupps
                 selections: [
                     ...selections.slice(0, index),
                     ...selections.slice(index + 1)
-                ]
+                ],
+                autoGen
             });
         }
     }

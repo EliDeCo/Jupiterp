@@ -18,14 +18,17 @@ Copyright (C) 2024 Andrew Cupps
         uniqueScheduleName
     } from "$lib/course-planner/ScheduleSelector";
     import type { ScheduleSelection, StoredSchedule } from "../../../types";
+    import type { Course } from "@jupiterp/jupiterp";
 
     let dropdownOpen: boolean = false;
 
     let currentScheduleName: string;
     let currentScheduleSelections: ScheduleSelection[];
+    let currentautoGen: Map<Course, [boolean, Map<string, boolean>]>;
     CurrentScheduleStore.subscribe((stored) => {
         currentScheduleName = stored.scheduleName;
         currentScheduleSelections = stored.selections;
+        currentautoGen = stored.autoGen;
     });
 
     function changeScheduleName() {
@@ -38,7 +41,8 @@ Copyright (C) 2024 Andrew Cupps
             );
             CurrentScheduleStore.set({
                 scheduleName: currentScheduleName,
-                selections: currentScheduleSelections
+                selections: currentScheduleSelections,
+                autoGen: currentautoGen
             });
         }
         else {
@@ -49,7 +53,8 @@ Copyright (C) 2024 Andrew Cupps
             );
             CurrentScheduleStore.set({
                 scheduleName: currentScheduleName,
-                selections: currentScheduleSelections
+                selections: currentScheduleSelections,
+                autoGen: currentautoGen
             });
         }
     }
@@ -73,16 +78,19 @@ Copyright (C) 2024 Andrew Cupps
         else {
             const scheduleToReplace: StoredSchedule = {
                 scheduleName: currentScheduleName,
-                selections: currentScheduleSelections
+                selections: currentScheduleSelections,
+                autoGen: currentautoGen
             }
             nonselectedSchedules.splice(index, 1);
             nonselectedSchedules = [scheduleToReplace,...nonselectedSchedules];
             currentScheduleName = newSchedule.scheduleName;
             currentScheduleSelections = newSchedule.selections;
+            currentautoGen = newSchedule.autoGen;
             
             CurrentScheduleStore.set({
                 scheduleName: currentScheduleName,
-                selections: currentScheduleSelections
+                selections: currentScheduleSelections,
+                autoGen: currentautoGen
             });
 
             NonselectedScheduleStore.set(nonselectedSchedules);
@@ -92,7 +100,8 @@ Copyright (C) 2024 Andrew Cupps
     function createNewSchedule() {
         const oldSchedule: StoredSchedule = {
             scheduleName: currentScheduleName,
-            selections: currentScheduleSelections
+            selections: currentScheduleSelections,
+            autoGen: currentautoGen
         };
         nonselectedSchedules = [oldSchedule, ...nonselectedSchedules];
         NonselectedScheduleStore.set(nonselectedSchedules);
@@ -102,9 +111,11 @@ Copyright (C) 2024 Andrew Cupps
             nonselectedSchedules
         );
         currentScheduleSelections = [];
+        currentautoGen = new Map();
         CurrentScheduleStore.set({
             scheduleName: currentScheduleName,
-            selections: currentScheduleSelections
+            selections: currentScheduleSelections,
+            autoGen: currentautoGen
         });
     }
 </script>

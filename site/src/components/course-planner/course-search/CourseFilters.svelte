@@ -9,7 +9,7 @@ Copyright (C) 2025 Andrew Cupps
     import {
         AdjustmentsHorizontalOutline,
         AngleDownOutline,
-        CloseOutline
+        CloseOutline,
     } from "flowbite-svelte-icons";
     import { slide } from "svelte/transition";
     import type { FilterParams } from "../../../types";
@@ -28,6 +28,25 @@ Copyright (C) 2025 Andrew Cupps
     const defaultMaxCredits = 20;
     let minCredits: number = defaultMinCredits;
     let maxCredits: number = defaultMaxCredits;
+
+    let earliest = '00:00';
+    let latest = '23:45';
+
+    let earliestNum = 0.0;
+    let latestNum = 23.75;
+
+    $: if (earliest) {
+        earliestNum = toHours(earliest);
+    }
+
+    $: if (latest) {
+        latestNum = toHours(latest);
+    }
+
+    function toHours(time: string) {
+        const [h, m] = time.split(':').map(Number);
+        return h + m / 60;
+    }
 
     $: {
         const params: FilterParams = {
@@ -66,7 +85,14 @@ Copyright (C) 2025 Andrew Cupps
         } else {
             matchingInstructors = [];
         }
-
+        if (earliestNum !== 0.0) {
+            appliedFiltersCount += 1;
+            params.clientSideFilters.earliest = earliestNum;
+        }
+        if (latestNum !== 23.75) {
+            appliedFiltersCount += 1;
+            params.clientSideFilters.latest = latestNum;
+        }
         if (appliedFiltersCount > 0) {
             CourseSearchFilterStore.set({
                 ...params,
@@ -85,7 +111,14 @@ Copyright (C) 2025 Andrew Cupps
         maxCredits = defaultMaxCredits;
         onlyOpenSections = false;
         instructor = '';
+        earliest = '00:00';
+        latest = '23:45';
     }
+
+    $: if ($AutoGen) {
+        instructor = '';
+    }
+
 </script>
 
 <div class="flex flex-col
@@ -98,7 +131,7 @@ Copyright (C) 2025 Andrew Cupps
                     hover:text-textLight dark:hover:text-textDark"
                 title="Show/hide course search filters"
                 on:click={() => { showFiltersMenu = !showFiltersMenu }}>
-            <AdjustmentsHorizontalOutline class="w-4 h-4 mr-1" />
+            <AdjustmentsHorizontalOutline class="w-3 h-3 mt-1" />
             {appliedFiltersCount} filter{appliedFiltersCount === 1 ? '' : 's'} applied
         </button>
 
@@ -224,8 +257,7 @@ Copyright (C) 2025 Andrew Cupps
                                 text-sm"/>
                 </div>
             </div>
-
-            {#if !$AutoGen}
+                {#if !$AutoGen}
                 <!-- Instructor -->
                 <div class="flex flex-row text-xs">
                     <span class="min-w-16">
@@ -271,6 +303,39 @@ Copyright (C) 2025 Andrew Cupps
                         {/if}
                     </div>
                 </div>
+                {/if}
+                {#if $AutoGen}
+                    <!-- Classtimes -->
+                    <div class="flex flex-row gap-4">
+                        <!-- Earliest -->
+                        <div class="flex flex-row items-center text-xs">
+                            <span class="min-w-12">
+                                Earliest: 
+                            </span>
+                            <input type="time" min="06:00" max="22:00" step="900"
+                                bind:value={earliest}
+                                class="border border-secCodesDark dark:border-divBorderDark
+                                        rounded-md w-17 px-1 py-0 text-xs
+                                        bg-bgLight dark:bg-bgDark
+                                        focus:outline-none focus:ring
+                                        text-sm"/>
+                        </div>
+
+                        <!-- Latest -->
+                        <div class="flex flex-row items-center text-xs">
+                            <span class="min-w-12">
+                                Latest: 
+                            </span>
+                            <input type="time" min="06:00" max="22:00" step="900"
+                                bind:value={latest}
+                                class="border border-secCodesDark dark:border-divBorderDark
+                                        rounded-md w-17 px-1 py-0
+                                        bg-bgLight dark:bg-bgDark text-xs
+                                        focus:outline-none focus:ring
+                                        text-sm"/>
+                        </div>
+                    </div>
+                {/if}
 
                 <!-- Total class size -->
                 <!-- Considering this, add later potentially -->
@@ -289,7 +354,6 @@ Copyright (C) 2025 Andrew Cupps
                         Only show open sections
                     </label>
                 </div>
-            {/if}
         </div>
     {/if}
 </div>

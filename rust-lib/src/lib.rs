@@ -1,13 +1,23 @@
+/**
+ * This file is part of Jupiterp. For terms of use, please see the file
+ * called LICENSE at the top level of the Jupiterp source tree (online at
+ * https://github.com/atcupps/Jupiterp/LICENSE).
+ * Copyright (C) 2024 Andrew Cupps
+ */
+
 mod serde_structs;
-mod sorting_structs;
 mod sorting;
+mod sorting_structs;
+use crate::{
+    serde_structs::{Coursedata, ScheduleSelection, make_course_cache},
+    sorting::get_potential_schedules,
+};
 use serde::Serialize;
-use wasm_bindgen::prelude::*;
-use std::panic;
 use serde_structs::Course;
-use sorting_structs::*;
-use crate::{serde_structs::{Coursedata, ScheduleSelection, make_course_cache}, sorting::get_potential_schedules};
 use serde_wasm_bindgen::Serializer;
+use sorting_structs::*;
+use std::panic;
+use wasm_bindgen::prelude::*;
 
 //TODO: impliment GenEd
 
@@ -32,35 +42,42 @@ macro_rules! console_log {
 }
 
 #[wasm_bindgen]
-/// Takes an input of Course[], and returns ScheduleSelection[][] (a list of schedules)
+/// Takes an input of Course[], and returns ScheduleSelection[][]
 pub fn get_schedules(courses: JsValue) -> JsValue {
     let course_list: Vec<Course> = match serde_wasm_bindgen::from_value(courses) {
         Ok(val) => val,
         Err(err) => {
             console_log!("Course data deserialize error: {}", err);
-            //log_js(&courses);
             Vec::new()
         }
     };
 
-    //format all sections into ScheduleSelection format and save for later
     let course_cache: Coursedata = make_course_cache(&course_list);
 
     let potential_schedules: Vec<Vec<Section>> = get_potential_schedules(course_list);
 
     //convert to ScheduleSelection[][] using the saved cache
-    let output: Vec<Vec<ScheduleSelection>> = potential_schedules.into_iter().map(|schedule|
-        schedule.into_iter().enumerate().map(|(i,section)| course_cache
-            .get(&section.course)
-            .and_then(|c|c.get(&section.section))
-            .unwrap_throw()
-            .clone()
-            .set_color(i as i32)
-        ).collect()
-    ).collect();
+    let output: Vec<Vec<ScheduleSelection>> = potential_schedules
+        .into_iter()
+        .map(|schedule| {
+            schedule
+                .into_iter()
+                .enumerate()
+                .map(|(i, section)| {
+                    course_cache
+                        .get(&section.course)
+                        .and_then(|c| c.get(&section.section))
+                        .unwrap_throw()
+                        .clone()
+                        .set_color(i as i32)
+                })
+                .collect()
+        })
+        .collect();
 
-    //create a custom serializer to add None -> Null Functionality
-    let js_val: JsValue = output.serialize(&Serializer::json_compatible()).unwrap_throw();
+    let js_val: JsValue = output
+        .serialize(&Serializer::json_compatible())
+        .unwrap_throw();
 
     return js_val;
 }

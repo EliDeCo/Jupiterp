@@ -30,16 +30,28 @@ Copyright (C) 2024 Andrew Cupps
 
     let showMoreInfo: boolean = false;
 
+
+    function getAllProfs(course: Course): Map<string, boolean> {
+        const output = new Map<string, boolean>();
+
+        course.sections?.forEach(section => {
+            const prof = section.instructors[0];
+            if (prof !== "Instructor: TBA") {
+                output.set(prof, true);
+            }
+        });
+
+        return output;
+    }
+
     function toggleCourseInAutogen() {
         if ($AutoGen) {
             CurrentScheduleStore.update((current) => {
-                let autoGen = current.autoGen ?? [];
-                if(autoGen.some(c => c.courseCode === course.courseCode)) {
-                    autoGen = autoGen.filter(c => c.courseCode !== course.courseCode);
-                } else {
-                    autoGen = [...autoGen, course]
+                const copy = new Map(current.autoGen);
+                if(!copy.delete(course)) {
+                    copy.set(course, [false, getAllProfs(course)])
                 }
-                return { ...current, autoGen: autoGen }
+                return { ...current, autoGen: copy }
             });
         }
     }

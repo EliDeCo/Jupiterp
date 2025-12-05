@@ -5,9 +5,10 @@ https://github.com/atcupps/Jupiterp/LICENSE).
 Copyright (C) 2025 Andrew Cupps
 -->
 <script lang='ts'>
-    import { fade } from "svelte/transition";
+    import { fade, slide } from "svelte/transition";
     import CourseListing from "./CourseListing.svelte";
     import ScheduleListing from "./ScheduleListing.svelte";
+    import InstructorListing from './InstructorListing.svelte';
     import { deptCodeToName, pendingResults, setSearchResults } from "../../../lib/course-planner/CourseSearch";
     import { appendHoveredSection } from "../../../lib/course-planner/Schedule";
     import {
@@ -16,18 +17,20 @@ Copyright (C) 2025 Andrew Cupps
         SearchResultsStore,
         DeptSuggestionsStore,
         AutoGen,
-        ProfsLookupStore
+        CourseSearchFilterStore,
     } from "../../../stores/CoursePlannerStores";
     import ScheduleSelector from "./ScheduleSelector.svelte";
-    import type { Course, Instructor } from "@jupiterp/jupiterp";
+    import type { Course } from "@jupiterp/jupiterp";
     import type { ScheduleSelection } from "../../../types";
     import CourseFilters from "./CourseFilters.svelte";
     import init, { 
         error_init, 
-        get_schedules,
+        get_schedules as getSchedules,
     } from "../../../../../rust-lib/pkg";
     import { onMount } from "svelte";
-    import { getProfRatingSection } from "../../../lib/course-planner/Professors";
+    import {
+        AdjustmentsHorizontalOutline,
+    } from "flowbite-svelte-icons";
 
 
     const FILTER_SCROLL_COLLAPSE_THRESHOLD = 100;
@@ -62,6 +65,7 @@ Copyright (C) 2025 Andrew Cupps
 
 
     let genEdMenuOpen = false;
+    let showAutoGenSelection = true;
 
 
     function selectDepartment(dept: string) {
@@ -141,55 +145,121 @@ Copyright (C) 2025 Andrew Cupps
     }
 
     function removeFromAutoGen(course: Course) {
-        //AutoGenCourseStore.update(current => {
-        //    return current.filter(c => c.courseCode !== course.courseCode);
-        //});
         CurrentScheduleStore.update(current => {
-            current.autoGen = current.autoGen.filter(c => c.courseCode !== course.courseCode);
-            return current;
+            const copy = new Map(current.autoGen);
+            copy.delete(course);
+            return {
+                ...current,
+                autoGen: copy
+            };
         });
-    }
-
-    let buildings: any;
-
-    async function getBuildingData() {
-        buildings = await (await fetch('/buildings.json')).json();
     }
 
     onMount(async () => {
         await init(); // init initializes memory addresses needed by WASM and that will be used by JS/TS
-        await getBuildingData();
         error_init();
     })
 
     let schedules: ScheduleSelection[][] = [];
-    let autogen_courses: Course[] = [];
-    //AutoGenCourseStore.subscribe((selected) => courses = selected);
-    CurrentScheduleStore.subscribe((selected) => autogen_courses = selected.autoGen);
+    let autoGenCourses: Map<Course, [boolean, Map<string, boolean>]> = new Map();
+    let autoGenCourseList: Course[];
+    CurrentScheduleStore.subscribe((selected) => autoGenCourses = selected.autoGen ?? new Map());
+    CurrentScheduleStore.subscribe((selected) => autoGenCourseList = Array.from(selected.autoGen?.keys() ?? []));
 
+    let earliest: number = 0;
+    CourseSearchFilterStore.subscribe((stored) => { earliest = stored.clientSideFilters.earliest ?? 0.0 })
+    let latest: number = 0;
+    CourseSearchFilterStore.subscribe((stored) => { latest = stored.clientSideFilters.latest ?? 22.75 })
+    let openOnly: boolean = false;
+    CourseSearchFilterStore.subscribe((stored) => openOnly = stored.clientSideFilters.onlyOpen ?? false);
 
-    let profs: Record<string, Instructor>;
-    ProfsLookupStore.subscribe((lookup) => { profs = lookup });
+    let shownNum: number = 0;
+    $: shownSchedules = schedules.slice(0, shownNum);
 
+    function loadMoreSchedules() {
+        shownNum = Math.min(shownNum + 50, schedules.length);
+    }
 
     function generateSchedule() {
         searchInput = '';
         searchResults = [];
-        schedules = [];
+        schedules = []; 
+        shownNum = 50;
+        closeAllDropdowns();
 
-        //get list of possible schedules
-        schedules = get_schedules(autogen_courses);
-        
-        if (schedules.length === 0) {
-            console.log("No possible schedules with the given parameters");
-        } else {
-            //for now sort by professor ratings (using the first instructor)
-            schedules.sort((a,b) => {
-                const bSeats = b.reduce((total, s) => total + getProfRatingSection(profs, s), 0);
-                const aSeats = a.reduce((total, s) => total + getProfRatingSection(profs, s), 0);
-                return bSeats - aSeats;
-            });
-        }
+
+        let autoGenCoursesFiltered = autoGenCourseList.map((course) => {
+            const sections = course.sections?.filter((section) => {
+ 
+                if (openOnly && section.openSeats === 0) return false;
+
+                const profsIncluded = autoGenCourses.get(course)?.[1];
+                if (profsIncluded && profsIncluded.size > 0) {
+                    const prof = section.instructors?.[0];
+                    if (prof && profsIncluded.has(prof) && !profsIncluded.get(prof)) {
+                        return false;
+                    }
+                }
+ 
+                return section.meetings.every((meeting) => {
+                    if (typeof meeting !== 'object') return true;
+                    const start = meeting.classtime.start;
+                    const end   = meeting.classtime.end;
+                    return start >= earliest && end <= latest;
+                })
+            }) ?? null;
+
+            return {
+                ...course,
+                sections
+            };
+        });
+
+        schedules = getSchedules(autoGenCoursesFiltered);
+    }
+
+    function closeAllDropdowns() {
+        CurrentScheduleStore.update((current) => {
+            const copy = new Map(current.autoGen);
+            for (const [course, data] of copy) {
+                copy.set(course, [false, data[1]]);
+            }
+            return { ...current, autoGen: copy };
+        });
+    }
+    
+    $: if (!courseSearchSelected) {
+        closeAllDropdowns();
+    }
+
+    function toggleProfDropdown(course: Course) {
+        CurrentScheduleStore.update((current) => {
+            const copy = new Map(current.autoGen);
+            const data = copy.get(course);
+            if (!data) return current;
+
+            const newState = !data[0];
+            if (newState) {
+                for (const [c, v] of copy) {
+                    if (c !== course) copy.set(c, [false, v[1]]);
+                }
+            }
+
+            copy.set(course, [newState, data[1]]);
+            return { ...current, autoGen: copy };
+        });
+    }
+
+    function toggleIncludeProfessor(course: Course, prof: string, selected: boolean) {
+        CurrentScheduleStore.update((current) => {
+            const copy = new Map(current.autoGen);
+            const data = copy.get(course);
+            if (!data) return current;
+            const profMap = new Map(data[1]);
+            profMap.set(prof, !selected);
+            copy.set(course, [data[0], profMap]);
+            return { ...current, autoGen: copy};
+        });
     }
 </script>
 
@@ -215,7 +285,7 @@ Copyright (C) 2025 Andrew Cupps
                             transition-transform duration-300'
         class:course-search-transition={!courseSearchSelected}
         class:shadow-lg={courseSearchSelected}>
-
+    
     <div class='flex flex-row text-xs ml-1 pb-1 2xl:text-sm'>
         <div>
             Spring 2026
@@ -250,39 +320,76 @@ Copyright (C) 2025 Andrew Cupps
             <label for="auto-gen-checkbox" class='ml-2 select-none'>Automatic schedule generator</label>
         </div>
 
+
         <CourseFilters bind:showGenEdMenu={genEdMenuOpen} />
 
     </div>
 
-    {#if $AutoGen}
-        <div class='w-full border-solid relative
-                                border-b-2 border-t-2 p-1 lg:px-0
-                                border-divBorderLight dark:border-divBorderDark'>
-            <div class='flex flex-row w-full gap-3'>
-                <div class='pt-2'>Selected Courses</div>
-                    <button on:click={generateSchedule}
-                            class='px-2 my-2 bg-bgSecondaryLight dark:bg-bgSecondaryDark 
-                            rounded-lg border-2 border-outlineLight dark:border-outlineDark
-                            border-solid text-base'>
-                        Generate Schedules
-                    </button>
-            </div>
-            <div class='flex flex-wrap gap-x-1 gap-y-0'>
-                <!-- Selected Courses for Auto Generation -->
-                {#each autogen_courses ?? [] as course}
-                    <button on:click={() => removeFromAutoGen(course)}
-                            class='px-2 my-2 bg-bgSecondaryLight dark:bg-bgSecondaryDark 
-                            rounded-lg border-2 border-outlineLight dark:border-outlineDark
-                            border-solid text-base'>
-                        {course.courseCode}
-                    </button>
-                {/each}
-            </div>
-            {#if !(autogen_courses ?? []).length}
-                <div class="text-sm italic dark:text-[#8892a8]">No Selected Courses</div>
+    <!-- Selected Courses for Auto Generation -->
+    <div class='flex flex-col w-full border-solid 
+            border-b-2 border-t-2 p-1 lg:px-0
+            border-divBorderLight dark:border-divBorderDark'>
+        {#if $AutoGen}
+            <button class="text-sm dark:text-[#8892a8] text-left"
+                    title="Show/hide course search filters"
+                    on:click={() => { showAutoGenSelection = !showAutoGenSelection }}>
+                {showAutoGenSelection ? 'Hide' : 'Show'} Selected Courses
+            </button>
+            {#if showAutoGenSelection}
+                <div class='relative' transition:slide>
+                    <div class='flex flex-row w-full gap-3'>
+                        <div class='pt-2'>Selected Courses</div>
+                        <button on:click={generateSchedule}
+                                class='px-2 my-2 bg-bgSecondaryLight dark:bg-bgSecondaryDark 
+                                rounded-lg border-2 border-outlineLight dark:border-outlineDark
+                                border-solid text-base'>
+                            Generate Schedules
+                        </button>
+                    </div>
+                    <div class='flex flex-wrap gap-x-1 gap-y-0'> 
+                        {#each autoGenCourseList ?? [] as course}
+                            <div class="relative">
+                                <div class='flex flex-row gap-1 px-2 my-2 bg-bgSecondaryLight dark:bg-bgSecondaryDark 
+                                            rounded-lg border-2 border-outlineLight dark:border-outlineDark
+                                            border-solid text-base'>
+                                    {course.courseCode}
+                                    <div class='flex flex-row gap-1 items-center text-secCodesLight dark:text-[#8892a8]'>
+                                        <button on:click={() => toggleProfDropdown(course)} title="Show/hide course professor filters">
+                                            <AdjustmentsHorizontalOutline class="w-4 h-4" />
+                                        </button>
+                                        <button on:click={() => removeFromAutoGen(course)}>x</button>
+                                    </div>
+                                </div>
+                                {#if autoGenCourses.get(course)?.[0] }
+                                    <div class="absolute left-0 top-full w-auto min-w-max flex flex-col bg-black p-2 z-50
+                                                border-2 border-outlineLight dark:border-outlineDark
+                                                max-h-64 overflow-y-auto">
+                                        {#if autoGenCourses.get(course)?.[1]?.size === 0}
+                                            <div>No known professors</div>
+                                        {:else}
+                                            {#each Array.from(autoGenCourses.get(course)?.[1] ?? []) as [prof, selected]}
+                                                <div class="flex flex-row w-full justify-between items-center">
+                                                    <InstructorListing instructor={prof}
+                                                        profsHover={false}
+                                                        removeHoverSection={() => {}} />
+                                                    <input id="auto-gen-checkbox" type="checkbox" checked={selected}
+                                                            class='h-4 w-4 rounded border-outlineLight dark:border-outlineDark'
+                                                            on:change={() => toggleIncludeProfessor(course,prof,selected)}/>
+                                                </div>
+                                            {/each}
+                                        {/if}
+                                    </div>
+                                {/if}
+                            </div>
+                        {/each}
+                    </div>
+                    {#if !(autoGenCourses.size)}
+                        <div class="text-sm italic dark:text-[#8892a8]">No Selected Courses</div>
+                    {/if}
+                </div>
             {/if}
-        </div>
-    {/if}
+        {/if}
+    </div>
 
     <!-- Course search results & dept suggestions -->
     <div class='grow courses-list overflow-y-scroll overflow-x-none
@@ -332,12 +439,21 @@ Copyright (C) 2025 Andrew Cupps
                         border-b-2 border-t-2 p-1 lg:px-0
                         border-divBorderLight dark:border-divBorderDark'>
         <!-- Auto Generated Schedules -->
-            {#if $AutoGen && schedules.length === 0}
+            {#if $AutoGen && (schedules.length === 0 || schedules[0].length === 0)}
                 <div class="text-sm italic dark:text-[#8892a8]">No possible schedules with the given parameters</div>
             {:else if $AutoGen}
-                {#each schedules as scheduleMatch, i}
+                <div class='pt-2'>Found {schedules.length} possible schedules:</div>
+                {#each shownSchedules as scheduleMatch, i}
                     <ScheduleListing schedule={scheduleMatch} index={i} />
                 {/each}
+                {#if shownNum < schedules.length}
+                    <button class="mt-2 px-2 py-1 bg-bgSecondaryLight dark:bg-bgSecondaryDark 
+                                    rounded-lg border-2 border-outlineLight dark:border-outlineDark
+                                    border-solid text-base"
+                            on:click={loadMoreSchedules}>
+                        Load More Schedules
+                    </button>
+                {/if}
             {/if}
         </div>
     </div>

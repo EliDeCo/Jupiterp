@@ -1,11 +1,20 @@
-use serde::{Deserialize, Serialize};
+/**
+ * This file is part of Jupiterp. For terms of use, please see the file
+ * called LICENSE at the top level of the Jupiterp source tree (online at
+ * https://github.com/atcupps/Jupiterp/LICENSE).
+ * Copyright (C) 2024 Andrew Cupps
+ */
 
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Section {
     pub classtimes: [u64; 5],
     pub course: String,
     pub section: String,
+    pub open_seats: u32,
+    pub waitlist: u32,
+    pub holdfile: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]

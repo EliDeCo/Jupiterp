@@ -31,3 +31,5 @@ Copyright (C) 2024 Andrew Cupps
         {/each}
     </div>
 </div>
+
+<!--TODO Add an indicator for possible walking conflicts-->
