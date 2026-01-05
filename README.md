@@ -1,15 +1,16 @@
-# Jupiterp
 
-Jupiterp is a website built to help students at the University of Maryland plan their schedules and make informed decisions about their course and section selections. Jupiterp provides a course planner that allows students to search for courses, see sections complete with professor reviews from [PlanetTerp](https://planetterp.com), and visualize their course schedule.
 
-This repository is for the main Jupiterp site, which is built with SvelteKit and TypeScript. In addition to this repository, other components of Jupiterp can be found in the [jupiterp-umd](https://github.com/jupiterp-umd) GitHub group, including:
-- The [Jupiterp API](http://api.jupiterp.com/), an open-source API for getting course data
-- The Jupiterp web-scraper, which collects course information to be used in the site
-- The [@jupiterp/jupiterp](https://www.npmjs.com/package/@jupiterp/jupiterp/) npm package, which provides a TS interface wrapping the Jupiterp API
+## Jupiterp Automatic Schedule Generation
 
-Jupiterp is not officially affiliated with the University of Maryland; it is primarily managed and maintained by @atcupps. Contact admin@jupiterp.com for any inquiries.
+A fork of jupiterp with some extra features. See the official [Jupiterp](https://github.com/atcupps/Jupiterp) repository.
 
-For more information on Jupiterp and on contributing to this project please see `CONTRIBUTING.md`. Otherwise, see the instructions below to learn how to work on this project.
+## This Repo's additions
+
+
+<img width="636" height="790" alt="image" src="https://github.com/user-attachments/assets/a8bb4103-c6ed-40de-8845-391443e974cd" />
+
+
+After selecting the "Automatic Schedule Generator" checkbox, search for courses using the search box and click add them to the list. Click the sliders button to modify allowed professors. There is also a time filter in the existing filters section above. Click the "Generate Schedules" button to create the filtered list of schedules. Click on any one to display it on the right and reveal professor and meeting time information.
 
 ## Getting Started
 
@@ -21,6 +22,9 @@ Before working on Jupiterp, make sure your computer has installed [Node.js](http
 
 To test the site, navigate to the `site` folder. Use `npm run dev` to run the site locally, then use a browser to navigate to http://localhost:5173/.
 
+Use 'npm run wasm' to recompile the rust filtering library
+
 ## Contributing
 
 See `CONTRIBUTING.md` to view instructions on the collaborative development process for Jupiterp.
+
