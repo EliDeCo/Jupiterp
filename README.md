@@ -10,7 +10,7 @@ A fork of jupiterp with some extra features. See the official [Jupiterp](https:/
 <img width="636" height="790" alt="image" src="https://github.com/user-attachments/assets/a8bb4103-c6ed-40de-8845-391443e974cd" />
 
 
-After selecting the "Automatic Schedule Generator" checkbox, search for courses using the search box and click add them to the list. Click the sliders button to modify allowed professors. There is also a time filter in the existing filters section above. Click the "Generate Schedules" button to create the filtered list of schedules. Click on any one to display it on the right and reveal professor and meeting time information.
+After selecting the "Automatic Schedule Generator" checkbox, search for courses using the search box and click to add them to the list. Click the sliders button to modify allowed professors. There is also a time filter in the existing filters section above. Click the "Generate Schedules" button to create the filtered list of schedules. Click on any one to display it on the right and reveal professor and meeting time information.
 
 ## Getting Started
 
