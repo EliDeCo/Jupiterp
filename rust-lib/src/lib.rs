@@ -10,7 +10,7 @@ mod sorting;
 mod sorting_structs;
 use crate::{
     serde_structs::{Coursedata, ScheduleSelection, make_course_cache},
-    sorting::get_potential_schedules,
+    sorting::{get_potential_schedules, prepare_sections},
 };
 use serde::Serialize;
 use serde_structs::Course;
@@ -54,7 +54,8 @@ pub fn get_schedules(courses: JsValue) -> JsValue {
 
     let course_cache: Coursedata = make_course_cache(&course_list);
 
-    let potential_schedules: Vec<Vec<Section>> = get_potential_schedules(course_list);
+    let prepared: Vec<Vec<Section>> = prepare_sections(course_list);
+    let potential_schedules: Vec<Vec<&Section>> = get_potential_schedules(&prepared);
 
     //convert to ScheduleSelection[][] using the saved cache
     let output: Vec<Vec<ScheduleSelection>> = potential_schedules
